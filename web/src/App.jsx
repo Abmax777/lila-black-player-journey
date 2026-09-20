@@ -17,6 +17,7 @@ import Legend from './components/Legend.jsx'
 import MapSummary from './components/MapSummary.jsx'
 import AreaInspector from './components/AreaInspector.jsx'
 import Shortcuts from './components/Shortcuts.jsx'
+import FirstRun from './components/FirstRun.jsx'
 import PhaseScrubber from './components/PhaseScrubber.jsx'
 import { readState, writeState, exportCanvas } from './lib/urlstate.js'
 
@@ -68,6 +69,11 @@ export default function App() {
   const [matchSort, setMatchSort] = useState('recent')
   const [spacePan, setSpacePan] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
+  // Browser storage can be empty, blocked, or throw outright in a private
+  // window, so a failed read just means "show it" rather than breaking boot.
+  const [showIntro, setShowIntro] = useState(() => {
+    try { return localStorage.getItem('lila.introSeen') !== '1' } catch { return true }
+  })
   // Names of controls the app just changed on its own, so the UI can say so.
   const [autoChanged, setAutoChanged] = useState([])
 
@@ -371,7 +377,7 @@ export default function App() {
         e.preventDefault()
       }
       else if (e.key === '?') { setShowShortcuts(true); e.preventDefault() }
-      else if (e.key === 'Escape') { setShowShortcuts(false) }
+      else if (e.key === 'Escape') { setShowShortcuts(false); setShowIntro(false) }
       else if (e.key === ' ') { setSpacePan(true); e.preventDefault() }
       else if (e.key === 'ArrowLeft') { panBy(-1, 0, e.shiftKey); e.preventDefault() }
       else if (e.key === 'ArrowRight') { panBy(1, 0, e.shiftKey); e.preventDefault() }
@@ -404,6 +410,11 @@ export default function App() {
 
   const heatmapLabel = heatmapMode === 'none' ? null : HEATMAP_LABEL[heatmapMode]
 
+  const dismissIntro = () => {
+    setShowIntro(false)
+    try { localStorage.setItem('lila.introSeen', '1') } catch { /* nothing to do */ }
+  }
+
   const toggleInspect = () => setInspectMode((v) => { if (v) setRect(null); return !v })
 
   return (
@@ -435,6 +446,7 @@ export default function App() {
         coverageOpacity={coverageOpacity}
         onCoverageOpacity={setCoverageOpacity}
         autoChanged={autoChanged}
+        onShowIntro={() => setShowIntro(true)}
         matchSort={matchSort}
         onMatchSort={setMatchSort}
         onCopyLink={copyLink}
@@ -536,6 +548,7 @@ export default function App() {
       )}
 
       {showShortcuts && <Shortcuts onClose={() => setShowShortcuts(false)} />}
+      {showIntro && <FirstRun onClose={dismissIntro} />}
     </div>
   )
 }
