@@ -27,7 +27,7 @@ export const DENSITY_GRID = 220
  * @param {string|null} category  null bins movement samples; otherwise that event category
  * @param {number} blur      smoothing radius in cells
  */
-export function computeDensity(data, mask, category, blur = 4) {
+export function computeDensity(data, mask, category, blur = 4, landmask = null, landGrid = 0) {
   const grid = DENSITY_GRID
   let field = new Float32Array(grid * grid)
   let count = 0
@@ -54,7 +54,32 @@ export function computeDensity(data, mask, category, blur = 4) {
     blurAxis(scratch, field, grid, blur, false)
   }
 
-  return { field, grid, count }
+  return { field, grid, count, land: landField(landmask, landGrid, grid) }
+}
+
+/**
+ * The landmass as a soft 0..1 field at the density grid's resolution.
+ *
+ * Without this the blur smears density off the coastline into the void, which
+ * reads as players having walked on open water. The mask ships at a coarser
+ * grid than the density field, so it is upsampled and then feathered by a
+ * couple of cells — a hard edge at the mask's own resolution would step along
+ * the coast instead of following it.
+ */
+function landField(landmask, landGrid, grid) {
+  if (!landmask || !landGrid) return null
+  const f = new Float32Array(grid * grid)
+  for (let r = 0; r < grid; r++) {
+    const lr = Math.min(landGrid - 1, Math.floor((r / grid) * landGrid))
+    for (let c = 0; c < grid; c++) {
+      const lc = Math.min(landGrid - 1, Math.floor((c / grid) * landGrid))
+      f[r * grid + c] = landmask[lr * landGrid + lc] === '1' ? 1 : 0
+    }
+  }
+  const tmp = new Float32Array(grid * grid)
+  blurAxis(f, tmp, grid, 2, true)
+  blurAxis(tmp, f, grid, 2, false)
+  return f
 }
 
 function blurAxis(src, dst, grid, radius, horizontal) {
@@ -87,7 +112,7 @@ function blurAxis(src, dst, grid, radius, horizontal) {
  *                          combat events or the surface swallows the art.
  * @param {number} alphaScale  overall opacity of the surface
  */
-export function densityTexture({ field, grid }, lift = 0.5, alphaScale = 1) {
+export function densityTexture({ field, grid, land }, lift = 0.5, alphaScale = 1) {
   const nonZero = []
   for (let i = 0; i < field.length; i++) if (field[i] > 1e-6) nonZero.push(field[i])
   if (!nonZero.length) return null
@@ -107,7 +132,10 @@ export function densityTexture({ field, grid }, lift = 0.5, alphaScale = 1) {
     img.data[o] = r
     img.data[o + 1] = g
     img.data[o + 2] = b
-    img.data[o + 3] = Math.round(a * alphaScale)
+    // Clipped to the landmass: density that blurred past the coast is not a
+    // finding, it is an artefact of the kernel.
+    const inside = land ? Math.min(1, land[i] * 1.12) : 1
+    img.data[o + 3] = Math.round(a * alphaScale * inside)
   }
   ctx.putImageData(img, 0, 0)
   return canvas

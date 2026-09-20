@@ -86,6 +86,7 @@ buildings and around POIs; none land in the ocean; 100% fall within UV [0,1].
 | Columnar JSON | Parquet via DuckDB-WASM | ~3 MB either way; JSON needs no WASM runtime and is debuggable by opening the file |
 | Commit generated artifacts | Build on deploy | The brief asks for one repo containing everything; also keeps the deploy reproducible without the raw dataset |
 | Coverage scored by **distinct matches** | Raw sample counts | Sample counts reward standing still; a designer asks how many runs came through |
+| Density clipped to the landmass | Unclipped blur | The smoothing kernel spreads density past the coastline, which renders as players having walked on open water. The same mask that powers the coverage view is upsampled and feathered to clip it, so a kernel artefact is not mistaken for a finding |
 | Coverage as an interpolated raster, log-scaled | One quad per cell, linear | The grid is an artefact of measurement, not a feature of the map. Traffic is heavily skewed — busiest Ambrose cell is entered in 16% of matches, median visited cell in 1.2% — so linear draws used routes as untouched |
 | One cell index feeds coverage *and* the hover readout | Separate passes | "31 runs here" is guaranteed to agree with the shading under the cursor — same numbers, not two calculations that can drift |
 | Magnifier as a second deck.gl view | Upscaling the main canvas | A second view re-renders real layers at higher zoom; upscaling just enlarges the blur |

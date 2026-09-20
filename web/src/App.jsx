@@ -193,11 +193,14 @@ export default function App() {
   const heatmap = useMemo(() => {
     if (!mapData || !dataMask || heatmapMode === 'none') return null
     const traffic = heatmapMode === 'traffic'
-    const field = computeDensity(mapData, dataMask, traffic ? null : heatmapMode, traffic ? 4 : 7)
+    const field = computeDensity(
+      mapData, dataMask, traffic ? null : heatmapMode, traffic ? 4 : 6,
+      mapMeta?.landmask, mapMeta?.coverageGrid,
+    )
     return field
-      ? { key: heatmapMode, field, lift: traffic ? 0.75 : 0.45, alpha: traffic ? 0.78 : 1 }
+      ? { key: heatmapMode, field, lift: traffic ? 0.8 : 0.58, alpha: traffic ? 0.8 : 0.92 }
       : null
-  }, [mapData, dataMask, heatmapMode])
+  }, [mapData, dataMask, heatmapMode, mapMeta])
 
   // Coverage describes a population of runs, so it is meaningless for one match.
   const coverage = useMemo(() => {
