@@ -21,6 +21,9 @@ would need to get there.
 - **Coverage view** — playable ground shaded by how many distinct matches passed
   through it, so unwalked ground is what reads rather than what you have to
   notice is missing. Gradient or unvisited-only, with an opacity control
+- **Overlay strength** — every overlay has an adjustable strength. It is a
+  uniform multiplier, so it scales all cells equally and leaves the relative
+  reading untouched
 - **Match-phase scrubber** — pick a time window and apply it to *every* match at
   once: where is everyone between minute 1 and 2, versus minute 10 and 11
 - **Journey start and end points**, derived from the first and last sample of

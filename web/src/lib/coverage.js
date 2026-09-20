@@ -27,6 +27,15 @@
 export const COVERAGE_TINT = [46, 74, 122]
 export const COVERAGE_TINT_HEX = '#2e4a7a'
 export const MAX_ALPHA = 236
+/**
+ * Tuned baseline, separate from the user's opacity control.
+ *
+ * The control is a uniform multiplier on top of this: it scales every cell
+ * equally, so it changes how strongly the overlay reads without touching the
+ * relative encoding. Which is what makes it safe to expose as a preference —
+ * unlike the normalisation, which would change what the picture means.
+ */
+export const COVERAGE_BASE = 0.65
 
 export const COVERAGE_MODES = {
   gradient: { id: 'gradient', label: 'Coverage', hint: 'Shaded by how many runs came through — darkest is untouched.' },
@@ -79,7 +88,7 @@ export function coverageTexture({ visits, grid, ceiling }, mode, opacity) {
   const ctx = canvas.getContext('2d')
   const img = ctx.createImageData(grid, grid)
   const [r, g, b] = COVERAGE_TINT
-  const peak = MAX_ALPHA * opacity
+  const peak = MAX_ALPHA * COVERAGE_BASE * opacity
 
   let any = false
   for (let i = 0; i < grid * grid; i++) {

@@ -48,7 +48,7 @@ export default function Sidebar({
   showTerminals, onToggleTerminals,
   overlay, onOverlayChange,
   coverageMode, onCoverageMode,
-  coverageOpacity, onCoverageOpacity,
+  overlayOpacity, onOverlayOpacity,
   onCopyLink, onSavePng, copied,
   matchSort, onMatchSort, autoChanged = [], onShowIntro, onStartTour,
 }) {
@@ -109,29 +109,35 @@ export default function Sidebar({
           })}
         </div>
 
-        {overlay === 'coverage' && (
+        {overlay !== 'none' && (
           <div className="overlay-sub">
-            <div className="chips">
-              {Object.values(COVERAGE_MODES).map((m) => (
-                <button
-                  key={m.id}
-                  className={`chip${coverageMode === m.id ? ' active' : ''}`}
-                  onClick={() => onCoverageMode(m.id)}
-                  aria-pressed={coverageMode === m.id}
-                >
-                  {m.label}
-                </button>
-              ))}
-            </div>
+            {overlay === 'coverage' && (
+              <div className="chips">
+                {Object.values(COVERAGE_MODES).map((m) => (
+                  <button
+                    key={m.id}
+                    className={`chip${coverageMode === m.id ? ' active' : ''}`}
+                    onClick={() => onCoverageMode(m.id)}
+                    aria-pressed={coverageMode === m.id}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            )}
             <label className="slider-row">
-              <span>Overlay opacity</span>
+              <span>Strength</span>
               <input
-                type="range" min={25} max={100} step={5}
-                value={Math.round(coverageOpacity * 100)}
-                onChange={(e) => onCoverageOpacity(Number(e.target.value) / 100)}
+                type="range" min={25} max={150} step={5}
+                value={Math.round(overlayOpacity * 100)}
+                onChange={(e) => onOverlayOpacity(Number(e.target.value) / 100)}
+                aria-label="Overlay strength"
               />
-              <span className="slider-value">{Math.round(coverageOpacity * 100)}%</span>
+              <span className="slider-value">{Math.round(overlayOpacity * 100)}%</span>
             </label>
+            <p className="hint tight">
+              Scales every cell equally, so the relative reading is unchanged.
+            </p>
           </div>
         )}
       </section>

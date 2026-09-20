@@ -52,7 +52,10 @@ export default function App() {
   const [heatmapMode, setHeatmapMode] = useState(initial.heatmapMode)
   const [showCoverage, setShowCoverage] = useState(initial.showCoverage)
   const [coverageMode, setCoverageMode] = useState(initial.coverageMode)
-  const [coverageOpacity, setCoverageOpacity] = useState(initial.coverageOpacity)
+  // One multiplier for every overlay. Each overlay keeps its own tuned
+  // baseline; this scales all of them together, so the control means the
+  // same thing whichever one is showing.
+  const [overlayOpacity, setOverlayOpacity] = useState(initial.overlayOpacity)
 
   const [cutoff, setCutoff] = useState(null)
   const [playing, setPlaying] = useState(false)
@@ -200,9 +203,15 @@ export default function App() {
       mapMeta?.landmask, mapMeta?.coverageGrid,
     )
     return field
-      ? { key: heatmapMode, field, lift: traffic ? 0.8 : 0.58, alpha: traffic ? 0.8 : 0.92 }
+      ? {
+          key: heatmapMode,
+          field,
+          lift: traffic ? 0.8 : 0.58,
+          // Tuned baseline per overlay, times the user's multiplier.
+          alpha: (traffic ? 0.8 : 0.92) * overlayOpacity,
+        }
       : null
-  }, [mapData, dataMask, heatmapMode, mapMeta])
+  }, [mapData, dataMask, heatmapMode, mapMeta, overlayOpacity])
 
   // Coverage describes a population of runs, so it is meaningless for one match.
   const coverage = useMemo(() => {
@@ -229,10 +238,10 @@ export default function App() {
 
   const shareState = useMemo(() => ({
     mapId, days: activeDays, matchId, showHumans, showBots, showPaths, showMarkers,
-    showTerminals, heatmapMode, showCoverage, coverageMode, coverageOpacity,
+    showTerminals, heatmapMode, showCoverage, coverageMode, overlayOpacity,
     phaseStart, phaseWindow,
   }), [mapId, activeDays, matchId, showHumans, showBots, showPaths, showMarkers,
-      showTerminals, heatmapMode, showCoverage, coverageMode, coverageOpacity,
+      showTerminals, heatmapMode, showCoverage, coverageMode, overlayOpacity,
       phaseStart, phaseWindow])
 
   useEffect(() => { writeState(shareState) }, [shareState])
@@ -509,8 +518,8 @@ export default function App() {
         onOverlayChange={changeOverlay}
         coverageMode={coverageMode}
         onCoverageMode={setCoverageMode}
-        coverageOpacity={coverageOpacity}
-        onCoverageOpacity={setCoverageOpacity}
+        overlayOpacity={overlayOpacity}
+        onOverlayOpacity={setOverlayOpacity}
         autoChanged={autoChanged}
         onShowIntro={() => setShowIntro(true)}
         onStartTour={() => setTourOpen(true)}
@@ -565,7 +574,7 @@ export default function App() {
             heatmap={heatmap}
             coverage={coverage}
             coverageMode={coverageMode}
-            coverageOpacity={coverageOpacity}
+            coverageOpacity={overlayOpacity}
             showPaths={showPaths}
             viewState={viewState}
             onViewStateChange={handleViewState}

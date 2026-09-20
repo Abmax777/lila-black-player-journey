@@ -22,7 +22,7 @@ const DEFAULTS = {
   heat: 'traffic',
   cov: 0,
   covMode: 'gradient',
-  covOp: 65,
+  op: 100,
   ph: '',
 }
 
@@ -46,7 +46,7 @@ export function readState() {
     heatmapMode: get('heat') ?? DEFAULTS.heat,
     showCoverage: num('cov') === 1,
     coverageMode: get('covMode') ?? DEFAULTS.covMode,
-    coverageOpacity: (num('covOp') ?? DEFAULTS.covOp) / 100,
+    overlayOpacity: (num('op') ?? DEFAULTS.op) / 100,
     phaseStart: Number.isFinite(phStart) ? phStart : 0,
     phaseWindow: Number.isFinite(phWindow) ? phWindow : null,
   }
@@ -67,7 +67,7 @@ export function writeState(s) {
   put('heat', s.heatmapMode)
   put('cov', s.showCoverage ? 1 : 0)
   put('covMode', s.coverageMode)
-  put('covOp', Math.round(s.coverageOpacity * 100))
+  put('op', Math.round(s.overlayOpacity * 100))
   put('ph', s.phaseWindow ? `${Math.round(s.phaseStart)}-${s.phaseWindow}` : '')
 
   const qs = q.toString()
