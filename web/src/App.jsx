@@ -64,6 +64,7 @@ export default function App() {
   const [cursorCell, setCursorCell] = useState(null)
   const [inspectMode, setInspectMode] = useState(false)
   const [rect, setRect] = useState(null)
+  const [matchSort, setMatchSort] = useState('recent')
 
   useEffect(() => {
     loadManifest().then(setBoot).catch((e) => setError(e.message || String(e)))
@@ -257,17 +258,20 @@ export default function App() {
     fitRef.current()
   }, [])
 
-  const changeHeatmap = useCallback((mode) => {
-    setHeatmapMode(mode)
-    setShowMarkers(mode === 'none')
-    if (mode !== 'none') setShowCoverage(false)
-  }, [])
+  // Overlays are mutually exclusive, so they are one value rather than two
+  // independent flags that silently clear each other.
+  const overlay = showCoverage ? 'coverage' : heatmapMode
 
-  const toggleCoverage = useCallback(() => {
-    setShowCoverage((v) => {
-      if (!v) setHeatmapMode('none')
-      return !v
-    })
+  const changeOverlay = useCallback((next) => {
+    if (next === 'coverage') {
+      setShowCoverage(true)
+      setHeatmapMode('none')
+      setShowMarkers(false)
+      return
+    }
+    setShowCoverage(false)
+    setHeatmapMode(next)
+    setShowMarkers(next === 'none')
   }, [])
 
   const toggleDay = useCallback((d) => {
@@ -362,14 +366,14 @@ export default function App() {
         onToggleMarkers={() => setShowMarkers((v) => !v)}
         showTerminals={showTerminals}
         onToggleTerminals={() => setShowTerminals((v) => !v)}
-        heatmapMode={heatmapMode}
-        onHeatmapChange={changeHeatmap}
-        showCoverage={showCoverage}
-        onToggleCoverage={toggleCoverage}
+        overlay={overlay}
+        onOverlayChange={changeOverlay}
         coverageMode={coverageMode}
         onCoverageMode={setCoverageMode}
         coverageOpacity={coverageOpacity}
         onCoverageOpacity={setCoverageOpacity}
+        matchSort={matchSort}
+        onMatchSort={setMatchSort}
         onCopyLink={copyLink}
         onSavePng={savePng}
         copied={copied}

@@ -5,8 +5,10 @@
   --panel-raised: #232321;
   --border: rgba(255, 255, 255, 0.10);
   --ink: #ffffff;
-  --ink-2: #c3c2b7;
-  --ink-muted: #898781;
+  --ink-2: #d2d1c8;
+  /* Raised from #898781: the old muted tone sat near 3:1 on the panel, which
+     is below AA for text at these sizes. */
+  --ink-muted: #a4a29a;
   --accent: #3987e5;
   --sidebar-w: 300px;
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -34,13 +36,18 @@ body { background: var(--page); color: var(--ink); overflow: hidden; }
 }
 
 .brand h1 { font-size: 15px; margin: 0 0 4px; letter-spacing: -0.01em; }
-.brand p { margin: 0 0 20px; font-size: 11.5px; color: var(--ink-muted); }
+.brand p { margin: 0 0 20px; font-size: 11.5px; color: var(--ink-muted); line-height: 1.5; }
 
 .sidebar section { margin-bottom: 20px; }
 .sidebar h2 {
-  font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em;
-  color: var(--ink-muted); margin: 0 0 8px; font-weight: 600;
+  font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--ink-2); margin: 0 0 9px; font-weight: 600;
 }
+.sidebar h3.sub {
+  font-size: 11.5px; color: var(--ink-2); margin: 12px 0 6px; font-weight: 600;
+}
+.sub-head { display: flex; align-items: baseline; justify-content: space-between; }
+.sub-head h3.sub { margin-bottom: 6px; }
 .section-head { display: flex; align-items: baseline; justify-content: space-between; }
 
 .link {
@@ -77,11 +84,17 @@ body { background: var(--page); color: var(--ink); overflow: hidden; }
   border: 1px solid var(--border); border-radius: 6px; padding: 7px 8px;
   font-family: inherit; font-size: 12px;
 }
-.hint { font-size: 10.5px; color: var(--ink-muted); margin: 7px 0 0; line-height: 1.45; }
+.hint { font-size: 11.5px; color: var(--ink-muted); margin: 7px 0 0; line-height: 1.5; }
+.hint.tight { margin: 0 0 10px; }
 
 .toggle {
-  display: flex; align-items: center; gap: 8px; font-size: 12.5px;
-  color: var(--ink-2); padding: 4px 0; cursor: pointer;
+  display: grid; grid-template-columns: auto 1fr; align-items: start; gap: 9px;
+  font-size: 12.5px; color: var(--ink-2); padding: 5px 0; cursor: pointer;
+}
+.toggle input { margin-top: 1px; }
+.toggle em {
+  display: block; font-style: normal; font-size: 11px;
+  color: var(--ink-muted); margin-top: 1px;
 }
 .toggle input { accent-color: var(--accent); }
 
@@ -330,3 +343,51 @@ body { background: var(--page); color: var(--ink); overflow: hidden; }
   font-style: normal; color: var(--ink-muted); font-size: 10.5px;
   padding-left: 6px; border-left: 1px solid var(--border); margin-left: 4px;
 }
+
+/* ---------- overlay radiogroup ---------- */
+
+.overlay-list { display: grid; gap: 2px; }
+.overlay-option {
+  display: grid; grid-template-columns: auto 1fr; align-items: baseline;
+  gap: 9px; padding: 6px 8px; border-radius: 7px; cursor: pointer;
+  border: 1px solid transparent;
+}
+.overlay-option:hover:not(.disabled) { background: var(--panel-raised); }
+.overlay-option.active { background: var(--panel-raised); border-color: var(--accent); }
+.overlay-option.disabled { opacity: 0.4; cursor: not-allowed; }
+.overlay-option input { accent-color: var(--accent); grid-row: span 2; align-self: center; }
+.overlay-option .q { font-size: 12.5px; color: var(--ink-2); }
+.overlay-option.active .q { color: var(--ink); font-weight: 600; }
+.overlay-option .d {
+  grid-column: 2; font-size: 11px; color: var(--ink-muted); margin-top: 1px;
+}
+.overlay-sub {
+  margin-top: 10px; padding: 10px; border-radius: 8px;
+  background: var(--panel-raised);
+}
+
+/* ---------- stats hierarchy (#27) ---------- */
+
+.stats { gap: 13px; }
+.stat.primary b { font-size: 16px; }
+.stat.primary > span { font-size: 12px; color: var(--ink-2); }
+.stat-cluster {
+  display: inline-flex; align-items: center; gap: 11px; flex-wrap: wrap;
+  padding: 3px 9px; border-radius: 7px; background: var(--panel-raised);
+}
+.stat-cluster .stat b { font-size: 12px; font-weight: 600; }
+.stat-cluster .stat { font-size: 11px; }
+.stat.zero { opacity: 0.42; }
+.stat.coverage em {
+  font-style: normal; color: var(--ink-muted); font-size: 11px;
+  padding-left: 7px; border-left: 1px solid var(--border); margin-left: 5px;
+}
+
+/* ---------- phase scrubber label (#26) ---------- */
+
+.phase-label { display: grid; line-height: 1.15; }
+.phase-label em {
+  font-style: normal; font-size: 9.5px; text-transform: uppercase;
+  letter-spacing: 0.07em; color: var(--ink-muted);
+}
+.sort-chips { margin-bottom: 7px; }

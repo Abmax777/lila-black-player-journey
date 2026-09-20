@@ -50,8 +50,11 @@ export default function PhaseScrubber({
         {playing ? '❚❚' : '▶'}
       </button>
 
-      <span className="clock">
-        {active ? `${formatClock(start)}–${formatClock(start + win)}` : 'Whole match'}
+      <span className="phase-label">
+        <em>Match phase</em>
+        <span className="clock">
+          {active ? `${formatClock(start)}–${formatClock(start + win)}` : 'All phases'}
+        </span>
       </span>
 
       <input
@@ -63,7 +66,7 @@ export default function PhaseScrubber({
         value={Math.round(start)}
         disabled={!active}
         onChange={(e) => onStart(Number(e.target.value))}
-        aria-label="Match phase window start"
+        aria-label="Match phase window start, applied across every run"
       />
 
       <span className="clock muted">{formatClock(maxElapsed)}</span>
@@ -81,7 +84,11 @@ export default function PhaseScrubber({
       </div>
 
       {active && <button className="link" onClick={onClear}>Clear</button>}
-      {!active && <span className="hint inline">Pick a window to scrub every match together</span>}
+      {!active && (
+        <span className="hint inline">
+          Pick a window to see every run at the same point in its own match
+        </span>
+      )}
     </div>
   )
 }
