@@ -47,7 +47,7 @@ const CARDS = [
   },
 ]
 
-export default function FirstRun({ onClose }) {
+export default function FirstRun({ onClose, onStartTour }) {
   return (
     <div className="firstrun-backdrop" role="presentation" onClick={onClose}>
       <div
@@ -75,7 +75,10 @@ export default function FirstRun({ onClose }) {
 
         <div className="firstrun-foot">
           <span className="hint">Press <kbd>?</kbd> any time for keyboard shortcuts.</span>
-          <button className="primary" onClick={onClose} autoFocus>Start exploring</button>
+          <div className="firstrun-buttons">
+            <button className="chip" onClick={onStartTour}>Show me around</button>
+            <button className="primary" onClick={onClose} autoFocus>Start exploring</button>
+          </div>
         </div>
       </div>
     </div>

@@ -39,6 +39,9 @@ would need to get there.
 - **Off-map flagging** for the 41 events that fall outside the drawn landmass
 - **Scale rulers** in metres along the map edges, labelled with real world
   coordinates and anchored N/S/E/W, so a finding can be taken back to the editor
+- **Guided tour** — six steps, opt-in from the first-run cards or the sidebar.
+  Each step puts the tool into the state it describes rather than only pointing
+  at a control, so the feature is seen working
 - **Shareable links** — every filter lives in the URL — and **PNG export**
 
 ## Accessibility

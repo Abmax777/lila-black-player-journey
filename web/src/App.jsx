@@ -18,6 +18,7 @@ import MapSummary from './components/MapSummary.jsx'
 import AreaInspector from './components/AreaInspector.jsx'
 import Shortcuts from './components/Shortcuts.jsx'
 import FirstRun from './components/FirstRun.jsx'
+import Tour from './components/Tour.jsx'
 import PhaseScrubber from './components/PhaseScrubber.jsx'
 import { readState, writeState, exportCanvas } from './lib/urlstate.js'
 
@@ -76,6 +77,7 @@ export default function App() {
   })
   // Names of controls the app just changed on its own, so the UI can say so.
   const [autoChanged, setAutoChanged] = useState([])
+  const [tourOpen, setTourOpen] = useState(false)
 
   useEffect(() => {
     loadManifest().then(setBoot).catch((e) => setError(e.message || String(e)))
@@ -303,6 +305,66 @@ export default function App() {
     flagAuto(changed)
   }, [showMarkers, flagAuto])
 
+  /**
+   * Tour steps. Each one puts the app into the state it is about to describe,
+   * so the viewer sees the feature working rather than a caption about it.
+   */
+  const tourSteps = useMemo(() => [
+    {
+      title: 'Start with a question',
+      body: 'Every overlay is named for what it answers rather than how it works. Pick one and the map redraws.',
+      target: '.overlay-list',
+      place: 'right',
+      before: () => { changeOverlay('traffic'); setMatchId(null) },
+    },
+    {
+      title: 'Ground nobody walks on',
+      body: 'Shaded by how many runs came through, darkest where none did. Just over a quarter of this map has never been entered across 566 runs — and it is almost all perimeter.',
+      target: '.canvas-wrap',
+      place: 'left',
+      before: () => changeOverlay('coverage'),
+    },
+    {
+      title: 'Humans, not nav-mesh',
+      body: 'Turn bots off and unused ground rises to 31%. Bots reach places players never do, so this is the figure that describes design intent.',
+      target: '.sidebar section:nth-of-type(4) .chips',
+      place: 'right',
+      before: () => setShowBots(false),
+    },
+    {
+      title: 'The same minute of every run',
+      body: 'Pick a window and it applies across all runs at once. 561 are alive between 1:00 and 2:00, spread over every POI; 130 remain at 10:00, converged on one hotspot.',
+      target: '.timeline.phase',
+      place: 'top',
+      before: () => {
+        setShowBots(true)
+        changeOverlay('traffic')
+        setPhaseWindow(60)
+        setPhaseStart(60)
+      },
+    },
+    {
+      title: 'Skipped, or simply far away?',
+      body: 'Drag a box anywhere to measure it. Entry rate against how many runs passed within 50 m separates ground players ignored from ground they could not reach — opposite problems, opposite fixes.',
+      target: '.inspector',
+      place: 'left',
+      settle: 420,
+      before: () => {
+        setPhaseWindow(null)
+        setPhaseStart(0)
+        setInspectMode(true)
+        setRect({ x0: 430, y0: 430, x1: 610, y1: 600 })
+      },
+    },
+    {
+      title: 'Send it to someone',
+      body: 'Every filter lives in the URL, so the address bar is the share link. Save PNG drops the current view into a design doc.',
+      target: '.sidebar section.share',
+      place: 'right',
+      before: () => { setInspectMode(false); setRect(null) },
+    },
+  ], [changeOverlay])
+
   const toggleDay = useCallback((d) => {
     setActiveDays((prev) => {
       const next = new Set(prev)
@@ -418,6 +480,7 @@ export default function App() {
     try { localStorage.setItem('lila.introSeen', '1') } catch { /* nothing to do */ }
   }
 
+
   const toggleInspect = () => setInspectMode((v) => { if (v) setRect(null); return !v })
 
   return (
@@ -450,6 +513,7 @@ export default function App() {
         onCoverageOpacity={setCoverageOpacity}
         autoChanged={autoChanged}
         onShowIntro={() => setShowIntro(true)}
+        onStartTour={() => setTourOpen(true)}
         matchSort={matchSort}
         onMatchSort={setMatchSort}
         onCopyLink={copyLink}
@@ -551,7 +615,13 @@ export default function App() {
       )}
 
       {showShortcuts && <Shortcuts onClose={() => setShowShortcuts(false)} />}
-      {showIntro && <FirstRun onClose={dismissIntro} />}
+      {showIntro && (
+        <FirstRun
+          onClose={dismissIntro}
+          onStartTour={() => { dismissIntro(); setTourOpen(true) }}
+        />
+      )}
+      {tourOpen && <Tour steps={tourSteps} onClose={() => setTourOpen(false)} />}
     </div>
   )
 }

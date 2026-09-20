@@ -50,7 +50,7 @@ export default function Sidebar({
   coverageMode, onCoverageMode,
   coverageOpacity, onCoverageOpacity,
   onCopyLink, onSavePng, copied,
-  matchSort, onMatchSort, autoChanged = [], onShowIntro,
+  matchSort, onMatchSort, autoChanged = [], onShowIntro, onStartTour,
 }) {
   const mapList = Object.values(manifest.maps)
   const sort = MATCH_SORTS.find((s) => s.id === matchSort) ?? MATCH_SORTS[0]
@@ -64,9 +64,10 @@ export default function Sidebar({
           Lila Black · {manifest.totals.matches.toLocaleString()} matches ·{' '}
           {manifest.totals.events.toLocaleString()} events
         </p>
-        <button className="link brand-link" onClick={onShowIntro}>
-          What can this tell me?
-        </button>
+        <div className="brand-links">
+          <button className="link" onClick={onShowIntro}>What can this tell me?</button>
+          <button className="link" onClick={onStartTour}>Show me around</button>
+        </div>
       </header>
 
       <section>
