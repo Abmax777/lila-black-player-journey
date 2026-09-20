@@ -37,7 +37,8 @@ export default function App() {
   const [categories, setCategories] = useState(new Set(CATEGORY_ORDER))
   const [heatmapMode, setHeatmapMode] = useState('traffic')
   const [showCoverage, setShowCoverage] = useState(false)
-  const [coverageThreshold, setCoverageThreshold] = useState(1)
+  const [coverageMode, setCoverageMode] = useState('gradient')
+  const [coverageOpacity, setCoverageOpacity] = useState(0.65)
 
   const [cutoff, setCutoff] = useState(null)
   const [playing, setPlaying] = useState(false)
@@ -148,8 +149,8 @@ export default function App() {
   const coverage = useMemo(() => {
     if (!mapData || !dataMask || !showCoverage || matchId) return null
     const meta = boot.manifest.maps[mapId]
-    return computeCoverage(mapData, dataMask, meta.landmask, meta.coverageGrid, coverageThreshold)
-  }, [mapData, dataMask, showCoverage, matchId, boot, mapId, coverageThreshold])
+    return computeCoverage(mapData, dataMask, meta.landmask, meta.coverageGrid)
+  }, [mapData, dataMask, showCoverage, matchId, boot, mapId])
 
   const selectMatch = useCallback((id) => {
     setMatchId(id)
@@ -194,6 +195,16 @@ export default function App() {
   const changeHeatmap = useCallback((mode) => {
     setHeatmapMode(mode)
     setShowMarkers(mode === 'none')
+    // A density surface and a coverage surface are inverse readings of the same
+    // movement data, and both are blue. Showing them together reads as noise.
+    if (mode !== 'none') setShowCoverage(false)
+  }, [])
+
+  const toggleCoverage = useCallback(() => {
+    setShowCoverage((v) => {
+      if (!v) setHeatmapMode('none')
+      return !v
+    })
   }, [])
 
   const toggleActor = useCallback((who) => {
@@ -228,9 +239,11 @@ export default function App() {
         showMarkers={showMarkers}
         onToggleMarkers={() => setShowMarkers((v) => !v)}
         showCoverage={showCoverage}
-        onToggleCoverage={() => setShowCoverage((v) => !v)}
-        coverageThreshold={coverageThreshold}
-        onCoverageThreshold={setCoverageThreshold}
+        onToggleCoverage={toggleCoverage}
+        coverageMode={coverageMode}
+        onCoverageMode={setCoverageMode}
+        coverageOpacity={coverageOpacity}
+        onCoverageOpacity={setCoverageOpacity}
       />
 
       <main className="stage" ref={stageRef}>
@@ -244,7 +257,7 @@ export default function App() {
             showBots={showBots}
             heatmapLabel={heatmapMode === 'none' ? null : HEATMAP_LABEL[heatmapMode]}
             coverage={coverage}
-            coverageThreshold={coverageThreshold}
+            coverageMode={coverageMode}
           />
         </div>
 
@@ -257,6 +270,8 @@ export default function App() {
             markers={markers}
             heatmap={heatmap}
             coverage={coverage}
+            coverageMode={coverageMode}
+            coverageOpacity={coverageOpacity}
             showPaths={showPaths}
             viewState={viewState}
             onViewStateChange={({ viewState: vs, interactionState }) => setViewState({

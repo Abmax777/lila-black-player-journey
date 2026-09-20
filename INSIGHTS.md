@@ -45,44 +45,46 @@ one is carrying the entire player experience.
 
 ---
 
-## 2. Two-fifths of Ambrose Valley has never been walked on
+## 2. Nearly a third of Ambrose Valley has never had a player on it
 
 **What caught my eye.** The traffic heatmap has a pronounced hole around the
-edge of every map. I built the cold-spot view to measure it rather than squint
-at it.
+edge of every map. I built a coverage view to measure it rather than squint at
+it: playable ground scored by how many distinct matches passed through each
+~10 m cell, measured against a landmass mask so ocean and off-map void are
+excluded rather than counted as "ignored".
 
-**The evidence.** Playable ground is scored by how many distinct matches passed
-through each ~10 m cell, measured against the landmass mask so ocean and off-map
-void are excluded.
+**The evidence.**
 
-| Map | Matches | Playable ground never visited |
-|---|---|---|
-| Ambrose Valley | 566 | **40%** |
-| Lockdown | 171 | **68%** |
-| Grand Rift | 59 | **84%** |
+| Map | Human matches | Never had a human on it | Visited by fewer than 5 matches |
+|---|---|---|---|
+| Ambrose Valley | 553 | **30.8%** | 63.3% |
+| Lockdown | 170 | **58.8%** | 85.9% |
+| Grand Rift | 57 | **61.0%** | 96.8% |
 
-On Ambrose Valley, raising the bar from "never" to "fewer than 5 matches" moves
-40% to 53% — the falloff at the rim is steep but not a cliff.
+Counting bot traffic as well, those figures fall to 26.7%, 51.8% and 50.2%.
+**Bots consistently reach ground humans never touch** — on Grand Rift the gap is
+eleven percentage points. Bot paths are nav-mesh output rather than player
+choice, so the humans-only column is the one that describes design intent, and
+it is the worse of the two.
 
 The shape matters more than the number: the dead ground is a thick, nearly
-continuous band around the perimeter, with the interior alive. Grand Rift's
-traffic collapses to the Mine Pit corridor and a handful of POIs.
+continuous band around the perimeter of all three maps, with the interior alive.
+Grand Rift's human traffic collapses almost entirely to the Mine Pit corridor.
 
-**Is it actionable, and what moves.** Directly. Two options, and they point in
-opposite directions, so the choice is a design decision rather than a fix:
-shrink the playable bounds to match observed play and reclaim the art,
-collision, nav-mesh and memory budget spent on the rim; or move extraction
-points and high-value loot outward to pull traffic into it. Metrics affected:
-map utilisation percentage, POI visit distribution, average distance travelled
-per match, and — if bounds shrink — streaming and memory budget.
+**Is it actionable, and what moves.** Directly. Two options pointing in opposite
+directions, so it is a design decision rather than a fix: shrink the playable
+bounds to match observed play and reclaim the art, collision, nav-mesh and
+memory budget spent on the rim; or move extraction points and high-value loot
+outward to pull traffic into it. Metrics affected: map utilisation percentage,
+POI visit distribution, average distance travelled per match, and — if bounds
+shrink — streaming and memory budget.
 
-**Why a level designer should care.** The effective playable area is much
-smaller than the designed one, which means POI density is higher in practice
-than on the design document. Every encounter is happening in roughly 60% of the
-space it was balanced for. And the perimeter is being paid for in full — art
-time, collision, nav mesh, memory — while returning nothing.
-
----
+**Why a level designer should care.** The effective playable area is
+substantially smaller than the designed one, so POI density is higher in
+practice than on the design document and every encounter is happening in a
+tighter space than it was balanced for. The perimeter is being paid for in
+full — art time, collision, nav mesh, memory — and returning nothing. On
+Lockdown and Grand Rift more than half the map is in that category.
 
 ## 3. The storm cannot kill you before minute eleven, and most matches end at six
 

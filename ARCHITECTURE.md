@@ -98,7 +98,9 @@ events fall within UV [0,1] on all three maps.
 | Heatmaps aggregated live on GPU | Precomputed density rasters | Live aggregation means every heatmap responds to every filter; precomputed ones would only answer the views anticipated at build time |
 | Columnar JSON | Parquet via DuckDB-WASM | ~3 MB either way at this scale; JSON needs no WASM runtime and is debuggable by opening the file |
 | Commit generated artifacts | Build them on deploy | The brief asks for one repo containing everything; it also keeps the deploy reproducible without the raw dataset |
-| Cold spots scored by **distinct matches** | Raw sample counts | Sample counts reward standing still; a designer is asking how many runs came through |
+| Coverage scored by **distinct matches** | Raw sample counts | Sample counts reward standing still; a designer is asking how many runs came through |
+| Coverage drawn as an interpolated raster | One quad per grid cell | The 10 m grid is an artefact of measurement, not a feature of the map; hard cell edges assert precision the measurement does not have |
+| Coverage shading on a **log** scale, normalised to the selection's 98th percentile | Linear share of total matches | Traffic is heavily skewed — the busiest cell on Ambrose Valley is entered in 16% of matches, the median visited cell in 1.2% — so a linear scale renders genuinely used routes as though untouched |
 | Aggregate and single-match views take opposite defaults | One uniform default | 566 overlapping journeys are unreadable and hide the map; one journey is worth drawing in full |
 | Event identity carried by hue **and** glyph shape | Colour alone | No four-colour set in the validated palette clears the all-pairs CVD gate; death-vs-loot stays in the warning band, so shape, a permanent legend and hover labels carry identity too |
 

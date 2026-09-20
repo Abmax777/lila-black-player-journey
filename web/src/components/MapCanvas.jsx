@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
 import DeckGL from '@deck.gl/react'
 import { OrthographicView, COORDINATE_SYSTEM } from '@deck.gl/core'
-import { BitmapLayer, PathLayer, ScatterplotLayer, IconLayer, PolygonLayer } from '@deck.gl/layers'
+import { BitmapLayer, PathLayer, ScatterplotLayer, IconLayer } from '@deck.gl/layers'
 import { HeatmapLayer } from '@deck.gl/aggregation-layers'
 
 import { WORLD } from '../lib/data.js'
 import { CATEGORY, PATH, HEAT_RAMP, OOB } from '../lib/palette.js'
+import { coverageTexture } from '../lib/coverage.js'
 import Tooltip from './Tooltip.jsx'
 
 const VIEW = new OrthographicView({ id: 'ortho', flipY: false })
@@ -66,10 +67,15 @@ function makeIconAtlas() {
 }
 
 export default function MapCanvas({
-  mapMeta, paths, markers, heatmap, coverage, showPaths, viewState, onViewStateChange,
+  mapMeta, paths, markers, heatmap, coverage, coverageMode, coverageOpacity,
+  showPaths, viewState, onViewStateChange,
 }) {
   const [hover, setHover] = useState(null)
   const icons = useMemo(() => makeIconAtlas(), [])
+  const coverageImage = useMemo(
+    () => (coverage ? coverageTexture(coverage, coverageMode, coverageOpacity) : null),
+    [coverage, coverageMode, coverageOpacity],
+  )
 
   // Marks thin out as the selection grows, so an aggregate view reads as a
   // distribution rather than a solid block of colour.
@@ -89,16 +95,20 @@ export default function MapCanvas({
     }),
 
     // Unused ground sits directly on the minimap, beneath every other layer,
-    // so it reads as a property of the map rather than as data on top of it.
-    coverage && new PolygonLayer({
-      id: 'coldspots',
-      data: coverage.cells,
-      getPolygon: (d) => d.polygon,
-      getFillColor: (d) => d.color,
-      stroked: false,
-      filled: true,
-      pickable: false,
+    // so it reads as a property of the map rather than as data laid on top.
+    // Uploaded as an image so the GPU interpolates between cells: the grid is
+    // an artefact of how we measure, not a feature of the map.
+    coverageImage && new BitmapLayer({
+      id: `coverage-${coverageMode}`,
+      image: coverageImage,
+      bounds,
       coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      textureParameters: {
+        minFilter: 'linear',
+        magFilter: 'linear',
+        addressModeU: 'clamp-to-edge',
+        addressModeV: 'clamp-to-edge',
+      },
     }),
 
     heatmap && new HeatmapLayer({

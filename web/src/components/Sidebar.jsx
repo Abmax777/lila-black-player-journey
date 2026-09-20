@@ -1,4 +1,5 @@
 import { formatClock, formatDay } from '../lib/data.js'
+import { COVERAGE_MODES } from '../lib/coverage.js'
 
 const HEATMAPS = [
   { id: 'none', label: 'Off' },
@@ -15,7 +16,8 @@ export default function Sidebar({
   showHumans, showBots, onToggleActor,
   showPaths, onTogglePaths,
   heatmapMode, onHeatmapChange, showMarkers, onToggleMarkers,
-  showCoverage, onToggleCoverage, coverageThreshold, onCoverageThreshold,
+  showCoverage, onToggleCoverage, coverageMode, onCoverageMode,
+  coverageOpacity, onCoverageOpacity,
 }) {
   const mapList = Object.values(manifest.maps)
 
@@ -110,18 +112,28 @@ export default function Sidebar({
         </label>
         {showCoverage && (
           <>
-            <p className="hint">Paint playable ground visited by fewer than…</p>
             <div className="chips">
-              {[1, 3, 5, 10].map((n) => (
+              {Object.values(COVERAGE_MODES).map((m) => (
                 <button
-                  key={n}
-                  className={`chip${coverageThreshold === n ? ' active' : ''}`}
-                  onClick={() => onCoverageThreshold(n)}
+                  key={m.id}
+                  className={`chip${coverageMode === m.id ? ' active' : ''}`}
+                  onClick={() => onCoverageMode(m.id)}
                 >
-                  {n} match{n === 1 ? '' : 'es'}
+                  {m.label}
                 </button>
               ))}
             </div>
+            <p className="hint">{COVERAGE_MODES[coverageMode].hint}</p>
+            <label className="slider-row">
+              <span>Overlay opacity</span>
+              <input
+                type="range"
+                min={25} max={100} step={5}
+                value={Math.round(coverageOpacity * 100)}
+                onChange={(e) => onCoverageOpacity(Number(e.target.value) / 100)}
+              />
+              <span className="slider-value">{Math.round(coverageOpacity * 100)}%</span>
+            </label>
           </>
         )}
       </section>

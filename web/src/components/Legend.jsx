@@ -1,11 +1,14 @@
 import { CATEGORY, CATEGORY_ORDER, PATH, HEAT_RAMP_HEX } from '../lib/palette.js'
-import { COLD_HEX } from '../lib/coverage.js'
+import { COVERAGE_TINT_HEX, COVERAGE_MODES } from '../lib/coverage.js'
 
 /**
  * Always visible: the category hues carry a CVD warning on one pair, so
  * identity must never rest on colour alone.
  */
-export default function Legend({ categories, onToggle, showPaths, showHumans, showBots, heatmapLabel, coverage, coverageThreshold }) {
+export default function Legend({
+  categories, onToggle, showPaths, showHumans, showBots,
+  heatmapLabel, coverage, coverageMode,
+}) {
   return (
     <div className="legend">
       <div className="legend-group">
@@ -27,15 +30,13 @@ export default function Legend({ categories, onToggle, showPaths, showHumans, sh
       </div>
       {coverage && (
         <div className="legend-group heat">
-          <span className="legend-item static">Unused ground</span>
+          <span className="legend-item static">{COVERAGE_MODES[coverageMode].label}</span>
           <span
-            className="heat-scale"
-            style={{ background: `linear-gradient(90deg, ${COLD_HEX[0]}, ${COLD_HEX[3]})` }}
+            className="heat-scale coverage-scale"
+            style={{ background: `linear-gradient(90deg, ${COVERAGE_TINT_HEX}, transparent)` }}
           />
           <span className="legend-item static muted-text">
-            {coverageThreshold === 1
-              ? 'never visited'
-              : `never visited → under ${coverageThreshold} matches`}
+            {coverageMode === 'gradient' ? 'untouched → heavily used' : 'no run has entered'}
           </span>
         </div>
       )}

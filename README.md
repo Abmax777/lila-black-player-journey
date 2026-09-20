@@ -16,9 +16,9 @@ Built for the Lila Games Product Engineer written test. See
 
 - **Traffic, kill, death and loot heatmaps**, aggregated on the GPU so they
   respond to every filter rather than being precomputed per view
-- **Cold spots** — playable ground scored by how many distinct matches passed
-  through it, so unused areas are what lights up rather than what you have to
-  notice is missing
+- **Coverage view** — playable ground shaded by how many distinct matches
+  passed through it, so unwalked ground is what reads rather than what you
+  have to notice is missing. Gradient or unvisited-only, with an opacity control
 - **Journey paths** for any match, with human players and bots visually separated
 - **Event markers** for kills, deaths, loot and storm deaths, each carrying a
   distinct colour *and* glyph shape
@@ -30,20 +30,22 @@ Built for the Lila Games Product Engineer written test. See
 
 1. **It opens on Ambrose Valley with traffic density.** The hot buildings and the
    cold edges are visible before you touch anything.
-2. **Tick "Highlight unused ground."** 40% of playable Ambrose Valley has never
-   been visited across 566 matches, and it's almost all perimeter. Try the
-   threshold chips — "under 5 matches" takes it to 53%.
-3. **Switch the heatmap to Kills.** Combat concentrates hard in the central
+2. **Tick "Highlight unused ground."** Coverage shades the map by how many
+   runs came through — darkest is untouched. 26.7% of playable Ambrose Valley
+   has never been entered across 566 matches, and it's almost all perimeter.
+   Switch to "Unvisited only" for the hard edge, or drag the opacity down to
+   read the terrain underneath.
+3. **Untick Bots.** Unused ground rises from 26.7% to 30.8% — bots reach
+   ground players never do, and bot paths are nav-mesh output rather than
+   player choice, so this is the figure that describes design intent.
+4. **Switch the heatmap to Kills.** Combat concentrates hard in the central
    corridor, not on the flank routes.
-4. **Untick Bots.** This matters: bot paths are nav-mesh output, not player
-   intent, and bots are 26% of all rows. Every conclusion about where *players*
-   choose to go should be drawn with bots off.
 5. **Pick a match from the dropdown.** Paths, markers and the timeline appear;
    the view switches from aggregate to single-journey automatically.
 6. **Press play.** Watch the run: drop, loot, bot encounters, and — if the match
    runs past eleven minutes — the storm.
-7. **Switch to Grand Rift.** 59 matches against Ambrose's 566, and 84% of its
-   ground unvisited.
+7. **Switch to Grand Rift.** 59 matches against Ambrose's 566, and 61% of its
+   ground never touched by a human.
 
 ## Running it locally
 
@@ -88,7 +90,7 @@ web/
   src/
     lib/data.js      loading and columnar decode
     lib/selectors.js filtering (data mask vs display mask)
-    lib/coverage.js  cold-spot scoring
+    lib/coverage.js  coverage scoring and overlay rasterisation
     lib/palette.js   colour and mark specification
     components/      map canvas, sidebar, timeline, legend, stats, tooltip
 ARCHITECTURE.md      design decisions, coordinate mapping, assumptions, tradeoffs
