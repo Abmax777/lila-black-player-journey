@@ -9,6 +9,7 @@ import { coverageTexture } from '../lib/coverage.js'
 import { densityTexture } from '../lib/density.js'
 import Tooltip from './Tooltip.jsx'
 import ZoomControls from './ZoomControls.jsx'
+import ScaleRulers from './ScaleRulers.jsx'
 
 /** The magnifier renders the same layers again, this much closer in. */
 const LOUPE_ZOOM = 2.6
@@ -80,7 +81,7 @@ export default function MapCanvas({
   mapMeta, paths, markers, terminals, heatmap, coverage, coverageMode, coverageOpacity,
   showPaths, viewState, onViewStateChange, onZoom, onResetView,
   magnifier, onToggleMagnifier, onCursorCell, cellReadout,
-  inspectMode, rect, onRect, onToggleInspect,
+  inspectMode, rect, onRect, onToggleInspect, onShowShortcuts, spacePan,
 }) {
   const [hover, setHover] = useState(null)
   const [cursor, setCursor] = useState(null)
@@ -125,7 +126,10 @@ export default function MapCanvas({
   const bounds = [0, 0, WORLD, WORLD]
   const showLoupe = magnifier && cursor && size.width > LOUPE_SIZE * 1.6
 
-  const base = useMemo(() => mainView(inspectMode), [inspectMode])
+  // Holding space suspends drawing so the map can be panned without
+  // leaving the area tool.
+  const drawing = inspectMode && !spacePan
+  const base = useMemo(() => mainView(drawing), [drawing])
 
   const views = useMemo(() => {
     if (!showLoupe) return [base]
@@ -157,19 +161,19 @@ export default function MapCanvas({
   }, [viewState, showLoupe, cursor])
 
   const beginDrag = useCallback((info) => {
-    if (!inspectMode || !info.coordinate) return
+    if (!drawing || !info.coordinate) return
     drag.current = { x0: info.coordinate[0], y0: info.coordinate[1] }
-  }, [inspectMode])
+  }, [drawing])
 
   const moveDrag = useCallback((info) => {
-    if (!inspectMode || !drag.current || !info.coordinate) return
+    if (!drawing || !drag.current || !info.coordinate) return
     const { x0, y0 } = drag.current
     const [x1, y1] = info.coordinate
     onRect({
       x0: Math.min(x0, x1), x1: Math.max(x0, x1),
       y0: Math.min(y0, y1), y1: Math.max(y0, y1),
     })
-  }, [inspectMode, onRect])
+  }, [drawing, onRect])
 
   const endDrag = useCallback(() => { drag.current = null }, [])
 
@@ -306,11 +310,14 @@ export default function MapCanvas({
         onDrag={moveDrag}
         onDragEnd={endDrag}
         getCursor={({ isDragging }) => {
+          if (spacePan) return isDragging ? 'grabbing' : 'grab'
           if (inspectMode) return 'crosshair'
           return isDragging ? 'grabbing' : 'grab'
         }}
         glOptions={{ preserveDrawingBuffer: true }}
       />
+
+      <ScaleRulers mapMeta={mapMeta} viewState={viewState} size={size} cursor={cursor} />
 
       {showLoupe && (
         <div
@@ -332,6 +339,7 @@ export default function MapCanvas({
         onToggleMagnifier={onToggleMagnifier}
         inspectMode={inspectMode}
         onToggleInspect={onToggleInspect}
+        onShowShortcuts={onShowShortcuts}
       />
 
       {cellReadout && !hover && <CellReadout readout={cellReadout} />}

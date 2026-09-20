@@ -16,6 +16,7 @@ import Timeline from './components/Timeline.jsx'
 import Legend from './components/Legend.jsx'
 import MapSummary from './components/MapSummary.jsx'
 import AreaInspector from './components/AreaInspector.jsx'
+import Shortcuts from './components/Shortcuts.jsx'
 import PhaseScrubber from './components/PhaseScrubber.jsx'
 import { readState, writeState, exportCanvas } from './lib/urlstate.js'
 
@@ -65,6 +66,8 @@ export default function App() {
   const [inspectMode, setInspectMode] = useState(false)
   const [rect, setRect] = useState(null)
   const [matchSort, setMatchSort] = useState('recent')
+  const [spacePan, setSpacePan] = useState(false)
+  const [showShortcuts, setShowShortcuts] = useState(false)
 
   useEffect(() => {
     loadManifest().then(setBoot).catch((e) => setError(e.message || String(e)))
@@ -295,6 +298,20 @@ export default function App() {
     else setShowBots((v) => !v)
   }, [])
 
+  const panBy = useCallback((dx, dy, big) => {
+    setViewState((v) => {
+      // Step is a share of the visible span, so panning feels the same at
+      // every zoom level rather than crawling when zoomed in.
+      const span = WORLD / (2 ** v.zoom)
+      const step = span * (big ? 0.28 : 0.09)
+      return {
+        ...v,
+        target: [v.target[0] + dx * step, v.target[1] + dy * step, 0],
+        userMoved: true,
+      }
+    })
+  }, [])
+
   const zoomBy = useCallback((steps) => {
     setViewState((v) => ({
       ...v,
@@ -324,10 +341,26 @@ export default function App() {
         setInspectMode((v) => { if (v) setRect(null); return !v })
         e.preventDefault()
       }
+      else if (e.key === '?') { setShowShortcuts(true); e.preventDefault() }
+      else if (e.key === 'Escape') { setShowShortcuts(false) }
+      else if (e.key === ' ') { setSpacePan(true); e.preventDefault() }
+      else if (e.key === 'ArrowLeft') { panBy(-1, 0, e.shiftKey); e.preventDefault() }
+      else if (e.key === 'ArrowRight') { panBy(1, 0, e.shiftKey); e.preventDefault() }
+      else if (e.key === 'ArrowUp') { panBy(0, 1, e.shiftKey); e.preventDefault() }
+      else if (e.key === 'ArrowDown') { panBy(0, -1, e.shiftKey); e.preventDefault() }
     }
+    const onKeyUp = (e) => { if (e.key === ' ') setSpacePan(false) }
+    // A window that loses focus mid-hold would otherwise stay stuck in pan.
+    const onBlur = () => setSpacePan(false)
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [zoomBy])
+    window.addEventListener('keyup', onKeyUp)
+    window.addEventListener('blur', onBlur)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('keyup', onKeyUp)
+      window.removeEventListener('blur', onBlur)
+    }
+  }, [zoomBy, panBy])
 
   if (error) {
     return (
@@ -437,6 +470,8 @@ export default function App() {
             rect={rect}
             onRect={setRect}
             onToggleInspect={toggleInspect}
+            onShowShortcuts={() => setShowShortcuts(true)}
+            spacePan={spacePan}
           />
         )}
 
@@ -469,6 +504,8 @@ export default function App() {
       {inspectMode && (
         <AreaInspector result={areaResult} onClear={() => setRect(null)} />
       )}
+
+      {showShortcuts && <Shortcuts onClose={() => setShowShortcuts(false)} />}
     </div>
   )
 }
