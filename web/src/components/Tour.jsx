@@ -27,15 +27,39 @@ export default function Tour({ steps, onClose }) {
   const popRef = useRef(null)
   const step = steps[i]
 
-  // Put the app into this step's state, then measure once React has painted.
+  /**
+   * Put the app into this step's state, bring the target into view, then
+   * measure once React has painted and any scrolling has settled.
+   *
+   * The scroll matters: the sidebar scrolls independently, and the share
+   * section sits below its fold. Highlighting something off-screen is worse
+   * than not highlighting it -- the page dims and the spotlight is nowhere to
+   * be found.
+   */
   useEffect(() => {
     let cancelled = false
     step.before?.()
+
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const bring = requestAnimationFrame(() => {
+      if (cancelled || !step.target) return
+      const el = document.querySelector(step.target)
+      if (!el) return
+      const r = el.getBoundingClientRect()
+      const offscreen = r.top < 0 || r.bottom > window.innerHeight
+        || r.left < 0 || r.right > window.innerWidth
+      if (offscreen) {
+        el.scrollIntoView({ block: 'center', inline: 'nearest',
+                            behavior: reduced ? 'auto' : 'smooth' })
+      }
+    })
+
     const settle = setTimeout(() => {
       if (cancelled) return
       measure()
-    }, step.settle ?? 280)
-    return () => { cancelled = true; clearTimeout(settle) }
+    }, step.settle ?? 460)
+
+    return () => { cancelled = true; cancelAnimationFrame(bring); clearTimeout(settle) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [i])
 
@@ -72,12 +96,15 @@ export default function Tour({ steps, onClose }) {
   const next = () => (i + 1 < steps.length ? setI(i + 1) : onClose())
   const back = () => setI(Math.max(0, i - 1))
 
-  const spot = rect && {
+  // Padded, then clamped: several targets are full-bleed (the canvas, the
+  // timeline, the inspector column), so an unclamped ring would run off the
+  // edge of the screen on its own.
+  const spot = rect && clampToViewport({
     top: rect.top - PAD,
     left: rect.left - PAD,
     width: rect.width + PAD * 2,
     height: rect.height + PAD * 2,
-  }
+  })
 
   return (
     <>
@@ -112,6 +139,18 @@ export default function Tour({ steps, onClose }) {
       </div>
     </>
   )
+}
+
+function clampToViewport(r) {
+  const m = 4
+  const top = Math.max(m, r.top)
+  const left = Math.max(m, r.left)
+  return {
+    top,
+    left,
+    width: Math.min(r.left + r.width, window.innerWidth - m) - left,
+    height: Math.min(r.top + r.height, window.innerHeight - m) - top,
+  }
 }
 
 /**
