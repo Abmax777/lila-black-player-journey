@@ -130,17 +130,6 @@ export function buildMarkers(data, rowMask) {
   return out
 }
 
-/** Movement samples as points, for the traffic heatmap. */
-export function buildPositions(data, rowMask) {
-  const out = []
-  for (let i = 0; i < data.n; i++) {
-    if (!rowMask[i]) continue
-    if (!data.eventIsPosition[data.eventIx[i]]) continue
-    out.push({ position: [data.x[i], data.y[i]] })
-  }
-  return out
-}
-
 export function formatClock(seconds) {
   const s = Math.max(0, Math.round(seconds))
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`

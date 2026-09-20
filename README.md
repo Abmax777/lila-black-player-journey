@@ -4,7 +4,7 @@ A browser tool for exploring how players actually move through Lila Black's
 maps: where they go, where they fight, where they loot, where the storm catches
 them, and which ground they never touch at all.
 
-**Live:** _(deployment URL)_
+**Live:** https://lila-black-player-journey-two.vercel.app/
 
 Built for the Lila Games Product Engineer written test. See
 [ARCHITECTURE.md](ARCHITECTURE.md) for design decisions and
@@ -14,8 +14,8 @@ Built for the Lila Games Product Engineer written test. See
 
 ## What it does
 
-- **Traffic, kill, death and loot heatmaps**, aggregated on the GPU so they
-  respond to every filter rather than being precomputed per view
+- **Traffic, kill, death and loot heatmaps**, rebinned on every filter change
+  rather than precomputed per view
 - **Coverage view** — playable ground shaded by how many distinct matches
   passed through it, so unwalked ground is what reads rather than what you
   have to notice is missing. Gradient or unvisited-only, with an opacity control

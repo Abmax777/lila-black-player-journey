@@ -5,7 +5,7 @@
 | Layer | Choice | Why |
 |---|---|---|
 | Pipeline | Python + pyarrow, run once offline | 1,243 parquet files are a build-time problem, not a runtime one |
-| Rendering | deck.gl 9 (`OrthographicView`) | GPU aggregation means heatmaps recompute per frame, so they answer to filters instead of being baked per view |
+| Rendering | deck.gl 9 (`OrthographicView`) | One coordinate system for the minimap, paths, markers and raster overlays, with pan/zoom for free |
 | App | React 18 + Vite | Fast builds, no framework tax on a single-screen tool |
 | Hosting | Vercel, static | No server, no database, no API, nothing to keep alive |
 
@@ -95,7 +95,8 @@ events fall within UV [0,1] on all three maps.
 | Decision | Alternative | Why this way |
 |---|---|---|
 | Precompute offline, ship static | DuckDB/FastAPI query backend | 89k rows fit in the browser; a backend adds cold starts and an outage mode for nothing |
-| Heatmaps aggregated live on GPU | Precomputed density rasters | Live aggregation means every heatmap responds to every filter; precomputed ones would only answer the views anticipated at build time |
+| Density binned on the CPU per filter change | deck.gl `HeatmapLayer` (GPU aggregation) | `HeatmapLayer` on deck.gl 9.4 fails to bind its weights texture on some drivers and paints the viewport one saturated blob. It rendered correctly under a software renderer and broke on real hardware. Binning 61k rows takes single-digit milliseconds, so the surface still recomputes on every filter change — deterministic, identical on every GPU, one fewer dependency |
+| Heatmaps recomputed per filter change | Precomputed density rasters per view | Precomputed rasters could only answer the views anticipated at build time; every heatmap here responds to map, day, match and human/bot filters |
 | Columnar JSON | Parquet via DuckDB-WASM | ~3 MB either way at this scale; JSON needs no WASM runtime and is debuggable by opening the file |
 | Commit generated artifacts | Build them on deploy | The brief asks for one repo containing everything; it also keeps the deploy reproducible without the raw dataset |
 | Coverage scored by **distinct matches** | Raw sample counts | Sample counts reward standing still; a designer is asking how many runs came through |
@@ -106,7 +107,9 @@ events fall within UV [0,1] on all three maps.
 
 ## Known limits
 
-Elevation is unused, so multi-storey interiors collapse to one footprint. There
+The density and coverage surfaces are binned at fixed grid resolutions (220 and
+96 cells per axis), so zooming in past roughly 4x reveals the smoothing rather
+than finer structure. Elevation is unused, so multi-storey interiors collapse to one footprint. There
 is no region-level readout, so a hot POI cannot be quantified against its
 neighbours. There is no side-by-side comparison between two date ranges, which
 is the question live-ops would ask most often. And with 59 matches, Grand Rift's

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { WORLD, loadManifest, loadMapEvents, buildPaths, buildMarkers, buildPositions } from './lib/data.js'
+import { WORLD, loadManifest, loadMapEvents, buildPaths, buildMarkers } from './lib/data.js'
 import { buildRowMask, summarise } from './lib/selectors.js'
 import { computeCoverage } from './lib/coverage.js'
+import { computeDensity } from './lib/density.js'
 import { CATEGORY_ORDER } from './lib/palette.js'
 import MapCanvas from './components/MapCanvas.jsx'
 import Sidebar from './components/Sidebar.jsx'
@@ -121,27 +122,19 @@ export default function App() {
     () => (mapData && dataMask ? summarise(mapData, dataMask) : null),
     [mapData, dataMask],
   )
-  // Heatmap sources come from dataMask, so its surface never changes just
-  // because markers or paths were toggled off.
-  const heatSource = useMemo(
-    () => (mapData && dataMask ? buildMarkers(mapData, dataMask) : []),
-    [mapData, dataMask],
-  )
-
   const heatmap = useMemo(() => {
     if (!mapData || !dataMask || heatmapMode === 'none') return null
-    const points = heatmapMode === 'traffic'
-      ? buildPositions(mapData, dataMask)
-      : heatSource.filter((m) => m.category === heatmapMode)
-    if (!points.length) return null
     // Sparse event types need a wider kernel to read as a surface at all.
-    return {
-      key: heatmapMode,
-      points,
-      radius: heatmapMode === 'traffic' ? 30 : points.length > 600 ? 46 : 62,
-      intensity: heatmapMode === 'traffic' ? 1.5 : 2.4,
-    }
-  }, [mapData, dataMask, heatmapMode, heatSource])
+    const blur = heatmapMode === 'traffic' ? 4 : 7
+    const field = computeDensity(mapData, dataMask,
+      heatmapMode === 'traffic' ? null : heatmapMode, blur)
+    // Movement covers most of the map, so it is drawn flatter and lighter
+    // than sparse combat events, which need lifting to read as a surface.
+    const traffic = heatmapMode === 'traffic'
+    return field
+      ? { key: heatmapMode, field, lift: traffic ? 0.75 : 0.45, alpha: traffic ? 0.78 : 1 }
+      : null
+  }, [mapData, dataMask, heatmapMode])
 
   // Coverage is a property of the whole selection, so it is computed from
   // dataMask and is meaningless for a single match -- one run cannot tell you

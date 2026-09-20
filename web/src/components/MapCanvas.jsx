@@ -2,11 +2,11 @@ import { useMemo, useState } from 'react'
 import DeckGL from '@deck.gl/react'
 import { OrthographicView, COORDINATE_SYSTEM } from '@deck.gl/core'
 import { BitmapLayer, PathLayer, ScatterplotLayer, IconLayer } from '@deck.gl/layers'
-import { HeatmapLayer } from '@deck.gl/aggregation-layers'
 
 import { WORLD } from '../lib/data.js'
 import { CATEGORY, PATH, HEAT_RAMP, OOB } from '../lib/palette.js'
 import { coverageTexture } from '../lib/coverage.js'
+import { densityTexture } from '../lib/density.js'
 import Tooltip from './Tooltip.jsx'
 
 const VIEW = new OrthographicView({ id: 'ortho', flipY: false })
@@ -76,6 +76,10 @@ export default function MapCanvas({
     () => (coverage ? coverageTexture(coverage, coverageMode, coverageOpacity) : null),
     [coverage, coverageMode, coverageOpacity],
   )
+  const heatImage = useMemo(
+    () => (heatmap ? densityTexture(heatmap.field, heatmap.lift, heatmap.alpha) : null),
+    [heatmap],
+  )
 
   // Marks thin out as the selection grows, so an aggregate view reads as a
   // distribution rather than a solid block of colour.
@@ -111,18 +115,17 @@ export default function MapCanvas({
       },
     }),
 
-    heatmap && new HeatmapLayer({
+    heatImage && new BitmapLayer({
       id: `heat-${heatmap.key}`,
-      data: heatmap.points,
-      getPosition: (d) => d.position,
-      getWeight: 1,
-      radiusPixels: heatmap.radius,
-      intensity: heatmap.intensity ?? 1,
-      threshold: 0.03,
-      colorRange: HEAT_RAMP,
-      aggregation: 'SUM',
-      opacity: 0.9,
+      image: heatImage,
+      bounds,
       coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      textureParameters: {
+        minFilter: 'linear',
+        magFilter: 'linear',
+        addressModeU: 'clamp-to-edge',
+        addressModeV: 'clamp-to-edge',
+      },
     }),
 
     showPaths && new PathLayer({
