@@ -50,7 +50,7 @@ export default function Sidebar({
   coverageMode, onCoverageMode,
   coverageOpacity, onCoverageOpacity,
   onCopyLink, onSavePng, copied,
-  matchSort, onMatchSort,
+  matchSort, onMatchSort, autoChanged = [],
 }) {
   const mapList = Object.values(manifest.maps)
   const sort = MATCH_SORTS.find((s) => s.id === matchSort) ?? MATCH_SORTS[0]
@@ -133,12 +133,15 @@ export default function Sidebar({
       </section>
 
       <section>
-        <h2>Add detail</h2>
-        <label className="toggle">
+        <h2>
+          Add detail
+          {autoChanged.length > 0 && <span className="auto-note">adjusted for you</span>}
+        </h2>
+        <label className={`toggle${autoChanged.includes('markers') ? ' auto' : ''}`}>
           <input type="checkbox" checked={showMarkers} onChange={onToggleMarkers} />
           <span>Event markers<em>Kills, deaths, loot, storm</em></span>
         </label>
-        <label className="toggle">
+        <label className={`toggle${autoChanged.includes('paths') ? ' auto' : ''}`}>
           <input type="checkbox" checked={showPaths} onChange={onTogglePaths} />
           <span>Journey paths<em>One line per run</em></span>
         </label>

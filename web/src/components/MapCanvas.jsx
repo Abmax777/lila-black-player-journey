@@ -160,15 +160,66 @@ export default function MapCanvas({
     }
   }, [viewState, showLoupe, cursor])
 
+  /**
+   * Which part of an existing selection the cursor is over: a corner, an
+   * edge, the body, or nothing. Tolerance is in screen pixels converted to
+   * world units, so handles stay the same physical size at any zoom.
+   */
+  const hitTest = useCallback((x, y) => {
+    if (!rect) return null
+    const tol = 9 / (2 ** viewState.zoom)
+    const nearL = Math.abs(x - rect.x0) < tol
+    const nearR = Math.abs(x - rect.x1) < tol
+    const nearB = Math.abs(y - rect.y0) < tol
+    const nearT = Math.abs(y - rect.y1) < tol
+    const insideX = x > rect.x0 - tol && x < rect.x1 + tol
+    const insideY = y > rect.y0 - tol && y < rect.y1 + tol
+    if (!insideX || !insideY) return null
+    if (nearL && nearB) return 'bl'
+    if (nearL && nearT) return 'tl'
+    if (nearR && nearB) return 'br'
+    if (nearR && nearT) return 'tr'
+    if (nearL) return 'l'
+    if (nearR) return 'r'
+    if (nearB) return 'b'
+    if (nearT) return 't'
+    return 'move'
+  }, [rect, viewState.zoom])
+
   const beginDrag = useCallback((info) => {
     if (!drawing || !info.coordinate) return
-    drag.current = { x0: info.coordinate[0], y0: info.coordinate[1] }
-  }, [drawing])
+    const [x, y] = info.coordinate
+    const grip = hitTest(x, y)
+    // Grabbing an existing selection adjusts it; anywhere else starts a new one.
+    drag.current = grip
+      ? { mode: grip, startX: x, startY: y, origin: { ...rect } }
+      : { mode: 'new', x0: x, y0: y }
+  }, [drawing, hitTest, rect])
 
   const moveDrag = useCallback((info) => {
-    if (!drawing || !drag.current || !info.coordinate) return
-    const { x0, y0 } = drag.current
-    const [x1, y1] = info.coordinate
+    const d = drag.current
+    if (!drawing || !d || !info.coordinate) return
+    const [x, y] = info.coordinate
+
+    if (d.mode === 'new') {
+      onRect({
+        x0: Math.min(d.x0, x), x1: Math.max(d.x0, x),
+        y0: Math.min(d.y0, y), y1: Math.max(d.y0, y),
+      })
+      return
+    }
+
+    const o = d.origin
+    const dx = x - d.startX
+    const dy = y - d.startY
+    let { x0, x1, y0, y1 } = o
+    if (d.mode === 'move') { x0 += dx; x1 += dx; y0 += dy; y1 += dy }
+    else {
+      if (d.mode.includes('l')) x0 = o.x0 + dx
+      if (d.mode.includes('r')) x1 = o.x1 + dx
+      if (d.mode.includes('b')) y0 = o.y0 + dy
+      if (d.mode.includes('t')) y1 = o.y1 + dy
+    }
     onRect({
       x0: Math.min(x0, x1), x1: Math.max(x0, x1),
       y0: Math.min(y0, y1), y1: Math.max(y0, y1),
@@ -276,6 +327,27 @@ export default function MapCanvas({
       updateTriggers: { getPolygon: [rect.x0, rect.y0, rect.x1, rect.y1] },
     }),
 
+    rect && new ScatterplotLayer({
+      id: 'selection-handles',
+      data: [
+        [rect.x0, rect.y0], [rect.x1, rect.y0], [rect.x0, rect.y1], [rect.x1, rect.y1],
+        [(rect.x0 + rect.x1) / 2, rect.y0], [(rect.x0 + rect.x1) / 2, rect.y1],
+        [rect.x0, (rect.y0 + rect.y1) / 2], [rect.x1, (rect.y0 + rect.y1) / 2],
+      ],
+      getPosition: (d) => d,
+      getRadius: 4,
+      radiusUnits: 'pixels',
+      filled: true,
+      stroked: true,
+      getFillColor: [13, 13, 13, 235],
+      getLineColor: [158, 197, 244, 255],
+      lineWidthUnits: 'pixels',
+      getLineWidth: 1.5,
+      pickable: false,
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      updateTriggers: { getPosition: [rect.x0, rect.y0, rect.x1, rect.y1] },
+    }),
+
     new IconLayer({
       id: 'markers',
       data: markers,
@@ -311,7 +383,15 @@ export default function MapCanvas({
         onDragEnd={endDrag}
         getCursor={({ isDragging }) => {
           if (spacePan) return isDragging ? 'grabbing' : 'grab'
-          if (inspectMode) return 'crosshair'
+          if (inspectMode) {
+            const grip = cursor && hitTest(cursor.x, cursor.y)
+            if (grip === 'move') return 'move'
+            if (grip === 'l' || grip === 'r') return 'ew-resize'
+            if (grip === 't' || grip === 'b') return 'ns-resize'
+            if (grip === 'tl' || grip === 'br') return 'nwse-resize'
+            if (grip === 'tr' || grip === 'bl') return 'nesw-resize'
+            return 'crosshair'
+          }
           return isDragging ? 'grabbing' : 'grab'
         }}
         glOptions={{ preserveDrawingBuffer: true }}

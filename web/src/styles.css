@@ -471,3 +471,50 @@ body { background: var(--page); color: var(--ink); overflow: hidden; }
   border-radius: 5px; padding: 2px 7px; font-size: 11px; font-family: inherit;
   color: var(--ink);
 }
+
+/* ---------- motion (#22, #23) ---------- */
+
+.chip, .tool, .map-chip, .overlay-option, .toggle, .legend-item, .link {
+  transition: background-color 130ms ease, border-color 130ms ease,
+              color 130ms ease, opacity 130ms ease;
+}
+.map-chip:hover { transform: translateX(1px); }
+.map-chip { transition: background-color 130ms ease, border-color 130ms ease, transform 130ms ease; }
+
+.inspector { animation: panel-in 180ms ease both; }
+@keyframes panel-in {
+  from { opacity: 0; transform: translateX(14px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.shortcuts { animation: dialog-in 160ms ease both; }
+@keyframes dialog-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.985); }
+  to   { opacity: 1; transform: none; }
+}
+.shortcuts-backdrop { animation: fade-in 140ms ease both; }
+@keyframes fade-in { from { opacity: 0 } to { opacity: 1 } }
+
+/* A control the app changed by itself, briefly marked so it reads as intent. */
+.toggle.auto {
+  animation: auto-flag 1.6s ease both;
+  border-radius: 6px; margin: 0 -6px; padding-left: 6px; padding-right: 6px;
+}
+@keyframes auto-flag {
+  0%   { background: rgba(57,135,229,0.30); }
+  55%  { background: rgba(57,135,229,0.30); }
+  100% { background: transparent; }
+}
+.auto-note {
+  margin-left: 8px; font-size: 10px; font-weight: 500; text-transform: none;
+  letter-spacing: 0; color: var(--accent); animation: fade-in 200ms ease both;
+}
+
+.canvas-wrap { animation: fade-in 220ms ease both; }
+.stage-loading, .stage-empty { animation: fade-in 160ms ease both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .inspector, .shortcuts, .shortcuts-backdrop, .canvas-wrap,
+  .stage-loading, .stage-empty, .toggle.auto, .auto-note { animation: none; }
+  .map-chip:hover { transform: none; }
+}

@@ -68,6 +68,8 @@ export default function App() {
   const [matchSort, setMatchSort] = useState('recent')
   const [spacePan, setSpacePan] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
+  // Names of controls the app just changed on its own, so the UI can say so.
+  const [autoChanged, setAutoChanged] = useState([])
 
   useEffect(() => {
     loadManifest().then(setBoot).catch((e) => setError(e.message || String(e)))
@@ -235,6 +237,15 @@ export default function App() {
     exportCanvas(`lila-${mapId}-${new Date().toISOString().slice(0, 10)}.png`)
   }, [mapId])
 
+  // Choosing an overlay also settles the layers, because a density surface and
+  // ten thousand glyphs cannot both be the primary read. The UI flags whatever
+  // it changed, so the checkbox moving on its own reads as intent, not a bug.
+  const flagAuto = useCallback((names) => {
+    if (!names.length) return
+    setAutoChanged(names)
+    setTimeout(() => setAutoChanged([]), 1600)
+  }, [])
+
   const onCursorCell = useCallback((x, y) => {
     setCursorCell(x == null ? null : cellAt(x, y, grid))
   }, [grid])
@@ -244,11 +255,13 @@ export default function App() {
     setPlaying(false)
     const m = mapMatches.find((x) => x.id === id)
     setCutoff(m ? m.duration : null)
-    setShowPaths(Boolean(id))
+    const changed = []
+    if (Boolean(id) !== showPaths) { setShowPaths(Boolean(id)); changed.push('paths') }
+    if (Boolean(id) !== showMarkers) { setShowMarkers(Boolean(id)); changed.push('markers') }
     setHeatmapMode(id ? 'none' : 'traffic')
-    setShowMarkers(Boolean(id))
     if (id) { setShowCoverage(false); setPhasePlaying(false) }
-  }, [mapMatches])
+    flagAuto(changed)
+  }, [mapMatches, showPaths, showMarkers, flagAuto])
 
   const changeMap = useCallback((id) => {
     setMapId(id)
@@ -266,16 +279,20 @@ export default function App() {
   const overlay = showCoverage ? 'coverage' : heatmapMode
 
   const changeOverlay = useCallback((next) => {
+    const changed = []
     if (next === 'coverage') {
       setShowCoverage(true)
       setHeatmapMode('none')
-      setShowMarkers(false)
+      if (showMarkers) { setShowMarkers(false); changed.push('markers') }
+      flagAuto(changed)
       return
     }
     setShowCoverage(false)
     setHeatmapMode(next)
-    setShowMarkers(next === 'none')
-  }, [])
+    const wantMarkers = next === 'none'
+    if (wantMarkers !== showMarkers) { setShowMarkers(wantMarkers); changed.push('markers') }
+    flagAuto(changed)
+  }, [showMarkers, flagAuto])
 
   const toggleDay = useCallback((d) => {
     setActiveDays((prev) => {
@@ -330,9 +347,21 @@ export default function App() {
   // Keyboard equivalents for every mouse-only map control.
   useEffect(() => {
     const onKey = (e) => {
-      const tag = e.target?.tagName
-      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return
+      const el = e.target
+      const tag = el?.tagName
+      const type = el?.type
+      // Only text entry should swallow shortcuts. Radios, checkboxes and
+      // sliders are inputs too, and blanket-skipping them meant the shortcuts
+      // went dead as soon as anyone clicked a control.
+      const typing = tag === 'TEXTAREA'
+        || (tag === 'INPUT' && !['radio', 'checkbox', 'range', 'button'].includes(type))
+      if (typing) return
       if (e.metaKey || e.ctrlKey || e.altKey) return
+      // Space is the native toggle for a focused control; leave it alone there.
+      const spaceIsTheirs = tag === 'INPUT' || tag === 'BUTTON' || tag === 'SELECT'
+      if (e.key === ' ' && spaceIsTheirs) return
+      // Arrow keys belong to a focused slider or select.
+      if (e.key.startsWith('Arrow') && (type === 'range' || tag === 'SELECT')) return
       if (e.key === '+' || e.key === '=') { zoomBy(1); e.preventDefault() }
       else if (e.key === '-' || e.key === '_') { zoomBy(-1); e.preventDefault() }
       else if (e.key === '0') { fitRef.current(); e.preventDefault() }
@@ -405,6 +434,7 @@ export default function App() {
         onCoverageMode={setCoverageMode}
         coverageOpacity={coverageOpacity}
         onCoverageOpacity={setCoverageOpacity}
+        autoChanged={autoChanged}
         matchSort={matchSort}
         onMatchSort={setMatchSort}
         onCopyLink={copyLink}
