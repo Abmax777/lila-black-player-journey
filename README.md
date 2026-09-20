@@ -37,12 +37,17 @@ would need to get there.
 - **Filters** by map, day, match, and human/bot
 - **Timeline playback** to watch a single match unfold at 1×, 4× or 12×
 - **Off-map flagging** for the 41 events that fall outside the drawn landmass
+- **Scale rulers** in metres along the map edges, labelled with real world
+  coordinates and anchored N/S/E/W, so a finding can be taken back to the editor
 - **Shareable links** — every filter lives in the URL — and **PNG export**
 
 ## Accessibility
 
-- Zoom in, zoom out and fit are visible buttons, not just scroll-wheel gestures,
-  and each has a keyboard shortcut (`+`, `−`, `0`; `M` toggles the magnifier)
+- Map navigation never requires a scroll wheel or a steady drag. Zoom in, out
+  and fit are visible buttons; panning works with the arrow keys in every mode
+  (Shift for larger steps) and with Space-drag while the area tool is active
+- Full shortcut list: `+` `−` zoom, `0` fit, arrows pan, `M` magnifier,
+  `I` area inspector, `?` shows the list in-app
 - The magnifier exists for reading dense areas without losing the wider view
 - Every control is reachable by keyboard with a visible focus ring
 - The canvas has a live text equivalent for screen readers, restating what the

@@ -99,11 +99,19 @@ death against loot stays in the warning band whichever four are chosen — so
 event identity is carried by **glyph shape as well as hue**, the legend is
 permanent, and hovering any mark names it.
 
-Map navigation does not require a scroll wheel: zoom in, out and fit are visible
-buttons with keyboard equivalents (`+`, `−`, `0`), and the magnifier (`M`) reads
-dense areas without losing the wider view. Controls are keyboard reachable with
-visible focus rings, animation is suppressed under `prefers-reduced-motion`, and
-the canvas carries a live text equivalent for screen readers.
+Map navigation requires neither a scroll wheel nor a steady drag: zoom and fit
+are visible buttons, panning works from the arrow keys in every mode, and the
+magnifier (`M`) reads dense areas without losing the wider view. `?` lists every
+shortcut in-app rather than leaving them in a README nobody opens. Controls are
+keyboard reachable with visible focus rings, animation is suppressed under
+`prefers-reduced-motion`, and the canvas — opaque to assistive technology by
+nature — carries a live text equivalent restating what the current view holds.
+
+One subtlety worth recording: the shortcut handler originally skipped every
+`INPUT` to protect text entry, which silenced the shortcuts the moment focus
+landed on a radio, checkbox or slider. It now skips only genuine text entry, and
+leaves Space and the arrow keys to a focused control that has its own use for
+them.
 
 ## Known limits
 
