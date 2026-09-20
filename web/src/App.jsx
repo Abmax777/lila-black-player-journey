@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import {
-  WORLD, loadManifest, loadMapEvents, buildPaths, buildMarkers, buildTerminals,
+  WORLD, loadManifest, loadMapEvents, buildPaths, buildJourneys, buildMarkers, buildTerminals,
 } from './lib/data.js'
 import { buildRowMask, summarise } from './lib/selectors.js'
 import { buildCellIndex, cellAt } from './lib/cells.js'
 import { computeCoverage } from './lib/coverage.js'
 import { computeDensity } from './lib/density.js'
+import { analyseArea } from './lib/area.js'
 import { CATEGORY_ORDER } from './lib/palette.js'
 import MapCanvas from './components/MapCanvas.jsx'
 import Sidebar from './components/Sidebar.jsx'
@@ -14,6 +15,7 @@ import StatsBar from './components/StatsBar.jsx'
 import Timeline from './components/Timeline.jsx'
 import Legend from './components/Legend.jsx'
 import MapSummary from './components/MapSummary.jsx'
+import AreaInspector from './components/AreaInspector.jsx'
 import PhaseScrubber from './components/PhaseScrubber.jsx'
 import { readState, writeState, exportCanvas } from './lib/urlstate.js'
 
@@ -60,6 +62,8 @@ export default function App() {
   const [phasePlaying, setPhasePlaying] = useState(false)
   const [copied, setCopied] = useState(false)
   const [cursorCell, setCursorCell] = useState(null)
+  const [inspectMode, setInspectMode] = useState(false)
+  const [rect, setRect] = useState(null)
 
   useEffect(() => {
     loadManifest().then(setBoot).catch((e) => setError(e.message || String(e)))
@@ -156,6 +160,19 @@ export default function App() {
     () => (mapData && dataMask && showTerminals ? buildTerminals(mapData, dataMask) : null),
     [mapData, dataMask, showTerminals],
   )
+  // Only built while the inspector is open: it is the one derivation that
+  // walks every sample rather than every cell.
+  const journeys = useMemo(
+    () => (mapData && dataMask && inspectMode ? buildJourneys(mapData, dataMask) : null),
+    [mapData, dataMask, inspectMode],
+  )
+
+  const areaResult = useMemo(() => {
+    if (!journeys || !cellIndex || !rect || !mapMeta) return null
+    if (rect.x1 - rect.x0 < 4 || rect.y1 - rect.y0 < 4) return null
+    return analyseArea(journeys, cellIndex, rect, mapMeta)
+  }, [journeys, cellIndex, rect, mapMeta])
+
   const summary = useMemo(
     () => (mapData && dataMask ? summarise(mapData, dataMask) : null),
     [mapData, dataMask],
@@ -299,6 +316,10 @@ export default function App() {
       else if (e.key === '-' || e.key === '_') { zoomBy(-1); e.preventDefault() }
       else if (e.key === '0') { fitRef.current(); e.preventDefault() }
       else if (e.key === 'm' || e.key === 'M') { setMagnifier((v) => !v); e.preventDefault() }
+      else if (e.key === 'i' || e.key === 'I') {
+        setInspectMode((v) => { if (v) setRect(null); return !v })
+        e.preventDefault()
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -317,8 +338,10 @@ export default function App() {
 
   const heatmapLabel = heatmapMode === 'none' ? null : HEATMAP_LABEL[heatmapMode]
 
+  const toggleInspect = () => setInspectMode((v) => { if (v) setRect(null); return !v })
+
   return (
-    <div className="app">
+    <div className={`app${inspectMode ? ' inspecting' : ''}`}>
       <Sidebar
         manifest={boot.manifest}
         mapId={mapId}
@@ -405,7 +428,11 @@ export default function App() {
             magnifier={magnifier}
             onToggleMagnifier={() => setMagnifier((v) => !v)}
             onCursorCell={onCursorCell}
-            cellReadout={cellReadout}
+            cellReadout={inspectMode ? null : cellReadout}
+            inspectMode={inspectMode}
+            rect={rect}
+            onRect={setRect}
+            onToggleInspect={toggleInspect}
           />
         )}
 
@@ -434,6 +461,10 @@ export default function App() {
           />
         )}
       </main>
+
+      {inspectMode && (
+        <AreaInspector result={areaResult} onClear={() => setRect(null)} />
+      )}
     </div>
   )
 }

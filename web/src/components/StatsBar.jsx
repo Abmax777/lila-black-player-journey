@@ -15,10 +15,14 @@ export default function StatsBar({ summary, coverage }) {
       {coverage && (
         <>
           <span className="stats-rule" />
-          <span className="stat">
-            <span className="swatch" style={{ background: '#d95926' }} />
-            <b>{coverage.pct.toFixed(0)}%</b>
-            <span>of playable ground unused</span>
+          {/* Lead with coverage rather than with the alarming inverse, and keep
+              the population visible beside it: the matches and players counts
+              at the head of this bar are the sample behind the percentage. */}
+          <span className="stat coverage">
+            <span className="swatch" style={{ background: '#2e4a7a' }} />
+            <b>{(100 - coverage.pct).toFixed(0)}%</b>
+            <span>player coverage</span>
+            <em>{coverage.pct.toFixed(0)}% never entered</em>
           </span>
         </>
       )}

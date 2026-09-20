@@ -7,8 +7,10 @@ them, and which ground they never touch at all.
 **Live:** https://lila-black-player-journey-two.vercel.app/
 
 Built for the Lila Games Product Engineer written test. See
-[ARCHITECTURE.md](ARCHITECTURE.md) for design decisions and
-[INSIGHTS.md](INSIGHTS.md) for what the data says.
+[ARCHITECTURE.md](ARCHITECTURE.md) for design decisions,
+[INSIGHTS.md](INSIGHTS.md) for what the data says, and
+[ROADMAP.md](ROADMAP.md) for where this goes next and what the telemetry
+would need to get there.
 
 ---
 
@@ -26,6 +28,9 @@ Built for the Lila Games Product Engineer written test. See
 - **Journey paths** for any match, with human players and bots visually separated
 - **Event markers** for kills, deaths, loot and storm deaths, each carrying a
   distinct colour *and* glyph shape
+- **Area inspector** — drag a rectangle for entry rate, dwell, loot, combat,
+  approach bearings, and a verdict on whether unused ground inside it is
+  *bypassed* (traffic passed within 50 m and didn't go in) or simply *remote*
 - **Hover readout** — point anywhere and get that cell's numbers: runs through
   it, kills, deaths, loot
 - **Magnifier** — a 6× inset that renders the real layers, not upscaled pixels
@@ -64,7 +69,9 @@ Built for the Lila Games Product Engineer written test. See
    not on the flank routes.
 7. **Pick a match, press play.** One run: drop, loot, bot encounters, and — if it
    lasts past eleven minutes — the storm.
-8. **Hit "Copy link".** The URL carries every filter, so that view is shareable.
+8. **Press `I` and drag a box over a quiet building.** Entry rate against
+   pass-within-50m tells you whether players skipped it or never got near it.
+9. **Hit "Copy link".** The URL carries every filter, so that view is shareable.
 
 ## Running it locally
 

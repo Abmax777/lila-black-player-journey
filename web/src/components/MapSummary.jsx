@@ -14,7 +14,7 @@ export default function MapSummary({ mapMeta, summary, coverage, heatmapLabel, p
       {' '}{counts.position.toLocaleString()} movement samples.
       {' '}{counts.kill.toLocaleString()} kills, {counts.death.toLocaleString()} deaths,
       {' '}{counts.loot.toLocaleString()} loot pickups, {counts.storm.toLocaleString()} storm deaths.
-      {coverage && ` ${coverage.pct.toFixed(0)} percent of playable ground unused.`}
+      {coverage && ` Player coverage ${(100 - coverage.pct).toFixed(0)} percent; ${coverage.pct.toFixed(0)} percent of playable ground never entered.`}
       {heatmapLabel && ` Showing ${heatmapLabel.toLowerCase()} density.`}
       {phase && ` Restricted to ${phase}.`}
     </p>

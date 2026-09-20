@@ -76,14 +76,16 @@ export async function loadMapEvents(mapId) {
 }
 
 /**
- * Group movement samples into per-player polylines for the selected rows.
+ * Movement samples grouped into per-journey polylines, time-ordered.
  *
- * deck.gl's PathLayer wants one path per player per match. Samples arrive in
- * file order, which is already per-player and time-ordered, but matches are
- * interleaved across the map payload, so we bucket by (match, user) and sort
- * by timestamp to be safe.
+ * One journey is one player in one match. Samples arrive in file order, which
+ * is already per-player and roughly time-ordered, but matches interleave
+ * across the map payload, so they are bucketed by (match, user) and sorted.
+ *
+ * Both the path layer and the area analysis read this, so a route drawn on
+ * screen and a route counted in the inspector are the same route.
  */
-export function buildPaths(data, rowMask) {
+export function buildJourneys(data, rowMask) {
   const buckets = new Map()
   for (let i = 0; i < data.n; i++) {
     if (!rowMask[i]) continue
@@ -91,22 +93,32 @@ export function buildPaths(data, rowMask) {
     const key = data.matchIx[i] * 100000 + data.userIx[i]
     let bucket = buckets.get(key)
     if (!bucket) {
-      bucket = { human: data.isHuman[i] === 1, pts: [] }
+      bucket = {
+        matchIx: data.matchIx[i],
+        userIx: data.userIx[i],
+        human: data.isHuman[i] === 1,
+        pts: [],
+      }
       buckets.set(key, bucket)
     }
     bucket.pts.push([data.x[i], data.y[i], data.t[i]])
   }
 
-  const paths = []
+  const out = []
   for (const bucket of buckets.values()) {
     if (bucket.pts.length < 2) continue
     bucket.pts.sort((a, b) => a[2] - b[2])
-    paths.push({
-      human: bucket.human,
-      path: bucket.pts.map((p) => [p[0], p[1]]),
-    })
+    out.push(bucket)
   }
-  return paths
+  return out
+}
+
+/** Journeys reduced to what PathLayer needs. */
+export function buildPaths(data, rowMask) {
+  return buildJourneys(data, rowMask).map((j) => ({
+    human: j.human,
+    path: j.pts.map((p) => [p[0], p[1]]),
+  }))
 }
 
 /** Discrete (non-movement) events as plain objects, for marker layers. */

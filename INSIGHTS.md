@@ -72,6 +72,21 @@ uniformly ignored — it has about twenty hot pinpricks on it and nothing in
 between, because every run lands at a fixed point and immediately heads inward.
 Nobody ever travels laterally around the edge, because there is no reason to.
 
+And the dead ground is not remote ground. Measuring how much traffic came
+within 50 m of each never-entered cell:
+
+| Map | Never entered | Remote (no traffic within 50 m) | **Bypassed** |
+|---|---|---|---|
+| Ambrose Valley | 30.8% | **0.8%** | **99.2%** |
+| Lockdown | 58.8% | 32.1% | 67.9% |
+| Grand Rift | 61.0% | 0% | 100% |
+
+On Ambrose Valley players walk within 50 m of **99.2%** of the ground they never
+enter, and 34.5% of unvisited cells have 5% or more of all matches passing that
+close. Distance is not why they skip it. Lockdown is the counter-case — a third
+of its dead ground genuinely is remote — and the two need opposite fixes:
+connectivity for one, incentive for the other.
+
 Counting bot traffic as well, unused ground falls to 26.7%, 51.8% and 50.2%:
 **bots consistently reach ground humans never touch**. Bot paths are nav-mesh
 output rather than player choice, so the humans-only column is the one that

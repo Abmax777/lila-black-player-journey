@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import DeckGL from '@deck.gl/react'
 import { OrthographicView, COORDINATE_SYSTEM } from '@deck.gl/core'
-import { BitmapLayer, PathLayer, ScatterplotLayer, IconLayer } from '@deck.gl/layers'
+import { BitmapLayer, PathLayer, ScatterplotLayer, IconLayer, PolygonLayer } from '@deck.gl/layers'
 
 import { WORLD } from '../lib/data.js'
 import { CATEGORY, PATH, OOB } from '../lib/palette.js'
@@ -14,11 +14,19 @@ import ZoomControls from './ZoomControls.jsx'
 const LOUPE_ZOOM = 2.6
 const LOUPE_SIZE = 230
 
-const MAIN_VIEW = new OrthographicView({
-  id: 'main',
-  flipY: false,
-  controller: { dragRotate: false, scrollZoom: { speed: 0.02, smooth: true } },
-})
+function mainView(inspectMode) {
+  return new OrthographicView({
+    id: 'main',
+    flipY: false,
+    // While drawing a selection, dragging must draw rather than pan. Zoom and
+    // keyboard navigation stay live so the view is still adjustable.
+    controller: {
+      dragRotate: false,
+      dragPan: !inspectMode,
+      scrollZoom: { speed: 0.02, smooth: true },
+    },
+  })
+}
 
 const ICON_SIZE = 64
 function makeIconAtlas() {
@@ -72,6 +80,7 @@ export default function MapCanvas({
   mapMeta, paths, markers, terminals, heatmap, coverage, coverageMode, coverageOpacity,
   showPaths, viewState, onViewStateChange, onZoom, onResetView,
   magnifier, onToggleMagnifier, onCursorCell, cellReadout,
+  inspectMode, rect, onRect, onToggleInspect,
 }) {
   const [hover, setHover] = useState(null)
   const [cursor, setCursor] = useState(null)
@@ -80,6 +89,7 @@ export default function MapCanvas({
   const deckRef = useRef(null)
 
   const icons = useMemo(() => makeIconAtlas(), [])
+  const drag = useRef(null)
   const coverageImage = useMemo(
     () => (coverage ? coverageTexture(coverage, coverageMode, coverageOpacity) : null),
     [coverage, coverageMode, coverageOpacity],
@@ -115,10 +125,12 @@ export default function MapCanvas({
   const bounds = [0, 0, WORLD, WORLD]
   const showLoupe = magnifier && cursor && size.width > LOUPE_SIZE * 1.6
 
+  const base = useMemo(() => mainView(inspectMode), [inspectMode])
+
   const views = useMemo(() => {
-    if (!showLoupe) return [MAIN_VIEW]
+    if (!showLoupe) return [base]
     return [
-      MAIN_VIEW,
+      base,
       new OrthographicView({
         id: 'loupe',
         x: Math.round(size.width - LOUPE_SIZE - 16),
@@ -129,7 +141,7 @@ export default function MapCanvas({
         clear: true,
       }),
     ]
-  }, [showLoupe, size.width])
+  }, [showLoupe, size.width, base])
 
   const viewStates = useMemo(() => {
     const main = viewState
@@ -143,6 +155,23 @@ export default function MapCanvas({
       },
     }
   }, [viewState, showLoupe, cursor])
+
+  const beginDrag = useCallback((info) => {
+    if (!inspectMode || !info.coordinate) return
+    drag.current = { x0: info.coordinate[0], y0: info.coordinate[1] }
+  }, [inspectMode])
+
+  const moveDrag = useCallback((info) => {
+    if (!inspectMode || !drag.current || !info.coordinate) return
+    const { x0, y0 } = drag.current
+    const [x1, y1] = info.coordinate
+    onRect({
+      x0: Math.min(x0, x1), x1: Math.max(x0, x1),
+      y0: Math.min(y0, y1), y1: Math.max(y0, y1),
+    })
+  }, [inspectMode, onRect])
+
+  const endDrag = useCallback(() => { drag.current = null }, [])
 
   const layers = [
     new BitmapLayer({
@@ -228,6 +257,21 @@ export default function MapCanvas({
       coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
     }),
 
+    rect && new PolygonLayer({
+      id: 'selection',
+      data: [rect],
+      getPolygon: (r) => [[r.x0, r.y0], [r.x1, r.y0], [r.x1, r.y1], [r.x0, r.y1]],
+      filled: true,
+      stroked: true,
+      getFillColor: [57, 135, 229, 26],
+      getLineColor: [158, 197, 244, 235],
+      lineWidthUnits: 'pixels',
+      getLineWidth: 1.5,
+      pickable: false,
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      updateTriggers: { getPolygon: [rect.x0, rect.y0, rect.x1, rect.y1] },
+    }),
+
     new IconLayer({
       id: 'markers',
       data: markers,
@@ -258,7 +302,13 @@ export default function MapCanvas({
         }}
         layers={layers}
         onHover={handleHover}
-        getCursor={({ isDragging }) => (isDragging ? 'grabbing' : 'crosshair')}
+        onDragStart={beginDrag}
+        onDrag={moveDrag}
+        onDragEnd={endDrag}
+        getCursor={({ isDragging }) => {
+          if (inspectMode) return 'crosshair'
+          return isDragging ? 'grabbing' : 'grab'
+        }}
         glOptions={{ preserveDrawingBuffer: true }}
       />
 
@@ -280,6 +330,8 @@ export default function MapCanvas({
         onReset={onResetView}
         magnifier={magnifier}
         onToggleMagnifier={onToggleMagnifier}
+        inspectMode={inspectMode}
+        onToggleInspect={onToggleInspect}
       />
 
       {cellReadout && !hover && <CellReadout readout={cellReadout} />}

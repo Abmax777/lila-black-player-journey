@@ -8,6 +8,7 @@
  */
 export default function ZoomControls({
   zoom, minZoom, maxZoom, onZoom, onReset, magnifier, onToggleMagnifier,
+  inspectMode, onToggleInspect,
 }) {
   const pct = Math.round(2 ** zoom * 100)
   return (
@@ -41,6 +42,15 @@ export default function ZoomControls({
         title="Magnifier  (M)"
       >
         Loupe
+      </button>
+      <button
+        onClick={onToggleInspect}
+        aria-pressed={inspectMode}
+        className={`wide${inspectMode ? ' on' : ''}`}
+        title="Inspect an area  (I)"
+        aria-label="Inspect an area"
+      >
+        Area
       </button>
     </div>
   )
