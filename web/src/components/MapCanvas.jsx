@@ -366,8 +366,29 @@ export default function MapCanvas({
     }),
   ].filter(Boolean)
 
+  const measured = size.width > 0 && size.height > 0
+
   return (
     <div className="canvas-wrap" ref={wrapRef}>
+      {!measured && <div className="stage-loading" role="status">Preparing the map…</div>}
+      {/*
+        deck.gl is mounted only once this container has been measured.
+
+        In the wild the canvas was found stuck at the 300x150 HTML default
+        while its CSS box measured 724x601 -- the whole map rendering into a
+        thumbnail and stretched over the element -- and it recovered from
+        neither a window resize nor a layout change. luma.gl sizes the drawing
+        buffer from a ResizeObserver on the canvas, so a canvas created while
+        its container has no size (a hidden panel, a collapsed pane) can come
+        up at the default and stay there.
+
+        Passing width and height explicitly fixes that but disables
+        autoResize, and with it the device-pixel scaling, which leaves the map
+        soft on a Retina display. Waiting for a non-zero measurement keeps
+        deck's own sizing -- and its dpr handling -- while removing the
+        starting condition that broke it.
+      */}
+      {measured && (
       <DeckGL
         ref={deckRef}
         views={views}
@@ -396,6 +417,7 @@ export default function MapCanvas({
         }}
         glOptions={{ preserveDrawingBuffer: true }}
       />
+      )}
 
       <ScaleRulers mapMeta={mapMeta} viewState={viewState} size={size} cursor={cursor} />
 
