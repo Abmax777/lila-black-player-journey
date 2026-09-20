@@ -24,8 +24,6 @@
  * warm event markers drawn above it.
  */
 
-import { WORLD } from './data.js'
-
 export const COVERAGE_TINT = [46, 74, 122]
 export const COVERAGE_TINT_HEX = '#2e4a7a'
 export const MAX_ALPHA = 236
@@ -36,24 +34,13 @@ export const COVERAGE_MODES = {
 }
 
 /**
- * @param {object} data     decoded map payload
- * @param {Uint8Array} mask row mask for the current selection
- * @param {string} landmask flat row-major '0'/'1', row 0 at top of the image
- * @param {number} grid     cells per axis
+ * Apply the landmass mask to a cell index and normalise for display.
+ *
+ * @param {object} index     from buildCellIndex, at the same grid as landmask
+ * @param {string} landmask  flat row-major '0'/'1', row 0 at top of the image
  */
-export function computeCoverage(data, mask, landmask, grid) {
-  const seen = new Map()
-  for (let i = 0; i < data.n; i++) {
-    if (!mask[i]) continue
-    if (!data.eventIsPosition[data.eventIx[i]]) continue
-    const col = Math.min(grid - 1, Math.max(0, Math.floor((data.x[i] / WORLD) * grid)))
-    const row = Math.min(grid - 1, Math.max(0, Math.floor(((WORLD - data.y[i]) / WORLD) * grid)))
-    const cell = row * grid + col
-    let set = seen.get(cell)
-    if (!set) { set = new Set(); seen.set(cell, set) }
-    set.add(data.matchIx[i])
-  }
-
+export function computeCoverage(index, landmask) {
+  const { grid, visits: raw } = index
   const visits = new Int32Array(grid * grid).fill(-1)   // -1 == not part of the map
   let playable = 0
   let never = 0
@@ -62,27 +49,18 @@ export function computeCoverage(data, mask, landmask, grid) {
   for (let cell = 0; cell < grid * grid; cell++) {
     if (landmask[cell] !== '1') continue
     playable++
-    const n = seen.get(cell)?.size ?? 0
+    const n = raw[cell]
     visits[cell] = n
     if (n === 0) never++
     else nonZero.push(n)
   }
 
-  // Normalise against the 98th percentile so a couple of hot cells do not
-  // compress the rest of the scale into one flat shade.
   nonZero.sort((a, b) => a - b)
   const ceiling = nonZero.length
     ? Math.max(1, nonZero[Math.floor(nonZero.length * 0.98)])
     : 1
 
-  return {
-    visits,
-    grid,
-    ceiling,
-    playable,
-    never,
-    pct: playable ? (never / playable) * 100 : 0,
-  }
+  return { visits, grid, ceiling, playable, never, pct: playable ? (never / playable) * 100 : 0 }
 }
 
 /**
@@ -90,8 +68,8 @@ export function computeCoverage(data, mask, landmask, grid) {
  *
  * Uploading a small image rather than drawing one quad per cell lets GPU
  * texture filtering interpolate between cells. That matters for honesty as
- * much as for looks: the 10 m grid is an artefact of how coverage is measured,
- * not a feature of the map, and hard cell edges assert a precision the
+ * much as for looks: the grid is an artefact of how coverage is measured, not
+ * a feature of the map, and hard cell edges assert a precision the
  * measurement does not have.
  */
 export function coverageTexture({ visits, grid, ceiling }, mode, opacity) {
@@ -115,19 +93,12 @@ export function coverageTexture({ visits, grid, ceiling }, mode, opacity) {
     if (n === 0) {
       alpha = peak
     } else if (n > 0 && mode === 'gradient') {
-      // Log rather than linear. Traffic is heavily skewed: the median visited
-      // cell on Ambrose Valley sees 7 matches against a busiest cell of ~92,
-      // so a linear scale would render almost every visited cell as though it
-      // were untouched. Log lifts the low end and compresses the peak, which
-      // is what makes a genuinely used route look used.
       const covered = Math.min(1, Math.log1p(n) / Math.log1p(ceiling))
       alpha = peak * (1 - covered) ** 1.2
     }
-
     img.data[o + 3] = Math.round(alpha)
     if (alpha > 2) any = true
   }
-
   if (!any) return null
   ctx.putImageData(img, 0, 0)
   return canvas

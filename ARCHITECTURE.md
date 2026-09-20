@@ -1,116 +1,115 @@
 # Architecture
 
-## Stack, and why
+## Stack
 
 | Layer | Choice | Why |
 |---|---|---|
 | Pipeline | Python + pyarrow, run once offline | 1,243 parquet files are a build-time problem, not a runtime one |
-| Rendering | deck.gl 9 (`OrthographicView`) | One coordinate system for the minimap, paths, markers and raster overlays, with pan/zoom for free |
+| Rendering | deck.gl 9 (`OrthographicView`) | One coordinate system for minimap, paths, markers and raster overlays, pan/zoom for free |
 | App | React 18 + Vite | Fast builds, no framework tax on a single-screen tool |
 | Hosting | Vercel, static | No server, no database, no API, nothing to keep alive |
 
 The dataset is 89,104 rows. That number decided the architecture: it fits in a
-browser several times over, so the pipeline runs once and the deployed tool is
-a static bundle. A query backend would add cold starts and a failure mode for
-no benefit at this scale.
+browser several times over, so the pipeline runs once and the deployed tool is a
+static bundle. A query backend would add cold starts and an outage mode for no
+benefit at this scale.
 
 ## Data flow
 
 ```
-1,243 *.nakama-0 (parquet, 34 MB)   3 minimaps (24.4 MB, up to 9000x9000)
-            |                                      |
-            +---------- pipeline/build.py ---------+
-                                |
-         normalise -> UV project -> landmass mask -> quantise
-                                |
-        web/public/data/  (3.17 MB committed to the repo)
-          manifest.json    maps, transforms, 96x96 landmask
-          matches.json     796 match summaries
-          events-<map>.json columnar events, one per map
-          maps/<map>.webp  2048px minimaps
-                                |
-                  fetch on load -> typed arrays
-                                |
-      one row mask per filter change -> deck.gl layers
+1,243 *.nakama-0 (parquet, 34 MB)   3 minimaps (24.4 MB, up to 9000²)
+            └──────── pipeline/build.py ────────┘
+         normalise → UV project → landmass mask → quantise
+                          ↓
+   web/public/data/ (3.17 MB, committed)
+     manifest.json  transforms + 96² landmask   matches.json  796 summaries
+     events-<map>.json  columnar events          maps/<map>.webp  2048px
+                          ↓  fetch once → typed arrays
+            row masks per filter change → deck.gl layers
 ```
 
-Events are stored **columnar** (structure-of-arrays plus string tables) rather
-than as an array of objects. Repeated match ids, user ids and event names then
-appear once each, which is most of why 34 MB of parquet becomes 2.45 MB of JSON.
-The browser decodes into typed arrays once at load, so filtering never allocates
-per-row objects.
+Events are stored **columnar** (structure-of-arrays plus string tables), so
+repeated match ids, user ids and event names appear once each — most of why
+34 MB of parquet becomes 2.45 MB of JSON. The browser decodes to typed arrays at
+load, so filtering never allocates per-row objects.
 
-Filters resolve to **two** `Uint8Array` row masks: `dataMask` (what the selection
-contains) drives the stats and heatmaps, `displayMask` (that, narrowed by
-visibility toggles) drives the path and marker layers. Splitting them is what
-stops the stats bar reporting zero samples merely because paths are switched off.
+Filters resolve to **two** row masks: `dataMask` (what the selection contains)
+drives stats, density and coverage; `displayMask` (that, narrowed by visibility
+toggles) drives paths and markers. Splitting them stops the stats bar reporting
+zero samples merely because a layer is switched off.
 
 ## Coordinate mapping
 
-Each map has a `scale` and an origin. World position projects to normalised UV:
+Each map has a `scale` and origin; world position projects to normalised UV:
 
 ```
-u = (x - origin_x) / scale
-v = (z - origin_z) / scale
+u = (x - origin_x) / scale      v = (z - origin_z) / scale
 ```
 
-Three things matter here.
+**Use `x` and `z`, never `y`.** `y` is elevation. Plotting (x, y) gives a
+plausible-looking but entirely wrong picture — the easiest way to get this tool
+wrong.
 
-**Use `x` and `z`, never `y`.** `y` is elevation. Plotting (x, y) produces a
-plausible-looking but entirely wrong picture, and it is the single easiest way
-to get this whole tool wrong.
-
-**The v flip lives in exactly one place.** Image rows run top-down, world z runs
-bottom-up. Rather than flipping in the renderer, the app works in a square world
-space where `position = [u * 1000, v * 1000]` and the minimap bitmap is bounded
-`[0, 0, 1000, 1000]`. deck.gl draws an image's first row at the upper bound, so
-v = 1 lands on image row 0 and the flip is implicit. Nothing downstream needs to
-know about it.
+**The v flip lives in one place.** Image rows run top-down, world z bottom-up.
+Rather than flipping in the renderer, the app works in a square world space
+where `position = [u·1000, v·1000]` and the bitmap is bounded `[0,0,1000,1000]`.
+deck.gl draws an image's first row at the upper bound, so v=1 lands on image row
+0 and the flip is implicit.
 
 **UV is resolution-independent.** The dataset README says the minimaps are
-1024x1024; they are 4320x4320, 2160x2158 and 9000x9000. Because the transform
-normalises before it pixels, resizing them to 2048px WebP for the web changes
-nothing about correctness.
+1024², they are 4320², 2160×2158 and 9000². Because the transform normalises
+before it pixels, resizing to 2048px WebP changes nothing about correctness.
 
-*Verification:* all 89,104 events were plotted over the source art. Points fall
-on roads, inside buildings and around POIs, and none land in the ocean. 100% of
-events fall within UV [0,1] on all three maps.
+*Verified:* all 89,104 events plotted over the source art fall on roads, inside
+buildings and around POIs; none land in the ocean; 100% fall within UV [0,1].
 
 ## Assumptions and data issues
 
-| What we found | How it was handled |
+| Found | Handled |
 |---|---|
-| `ts` is typed as milliseconds but holds Unix **seconds** — read as declared it yields Jan 1970, and the README calls it match-elapsed time | Read as seconds. Confirmed three ways: it reproduces the stated Feb 10–14 range, the derived UTC date matches the containing folder for 99.51% of rows, and it produces a realistic daily activity curve. UTC is treated as canonical because the folder split is UTC. |
+| `ts` typed as milliseconds but holding Unix **seconds** — read as declared it yields Jan 1970, and the README calls it match-elapsed time | Read as seconds. Confirmed three ways: reproduces the stated Feb 10–14 range; derived UTC date matches the containing folder for 99.51% of rows; yields a realistic daily activity curve. UTC is canonical because the folder split is UTC |
 | `event` is parquet binary, not string | Decoded UTF-8 at load |
-| `match_id` carries a `.nakama-0` server-instance suffix | Stripped; kept as the display id |
-| README says bots emit only `BotPosition`/`BotKill`/`BotKilled`, but 636 `Position` and 115 `Loot` rows carry numeric ids | Human vs bot is decided by `user_id` **shape** (UUID vs numeric), never by event name |
-| Minimaps have no alpha; off-map void is opaque black, and so are POI outlines and shadows inside the map | Landmass mask built by flood-filling black inward from the image border, so only void connected to the edge counts as outside |
-| 41 events (0.046%) fall outside the drawn landmass — 39 of them clustered off Grand Rift's southern shoreline, 17 of those `Loot` | **Kept and flagged**, not clamped. Loot pickups imply legitimate playable geometry the minimap art does not draw. Clamping would hide a real art-coverage finding. |
-| 16 matches contain no human at all, with bots looting and fighting normally | Kept. Most likely server warm-up or a disconnect before the first sample; flagged rather than filtered, since dropping them would quietly change match counts. |
-| 23 of 39 storm deaths are not the final event for that player-journey | Unresolved. `KilledByStorm` may be a down rather than a kill. Storm figures are reported as events, not as distinct player deaths. |
-| `y` (elevation) is dropped | Gridding each map at ~10 m and regressing `y` on (x, z) gives R² of 0.990 / 0.972 / 0.987. Elevation is terrain, not verticality — two players at the same (x, z) sit within half a metre. With no terrain mesh available, a 3D view would float paths over a flat plane and show the same information less legibly. |
+| `match_id` carries a `.nakama-0` server-instance suffix | Stripped |
+| README says bots emit only `Bot*` events, but 636 `Position` and 115 `Loot` rows carry numeric ids | Human vs bot decided by `user_id` **shape**, never by event name |
+| Minimaps have no alpha; off-map void is opaque black — and so are POI outlines and shadows *inside* the map | Landmass mask flood-filled inward from the image border, so only void connected to the edge counts as outside |
+| 41 events (0.046%) fall outside the drawn landmass — 39 clustered off Grand Rift's southern shore, 17 of them `Loot` | **Kept and flagged**, not clamped. Loot pickups imply playable geometry the art doesn't draw; clamping would hide a real finding |
+| 16 matches contain no human at all, bots looting and fighting normally | Kept and flagged. Likely server warm-up or a disconnect before first sample; dropping them would quietly change match counts |
+| 23 of 39 storm deaths are not the final event for that journey | Unresolved — `KilledByStorm` may be a down rather than a kill. Storm figures are reported as events, not distinct deaths |
+| `y` (elevation) dropped | Gridding at ~10 m and regressing `y` on (x, z) gives R² of 0.990 / 0.972 / 0.987. Elevation is terrain, not verticality — two players at the same (x, z) sit within half a metre. With no terrain mesh, a 3D view would float paths over a flat plane |
 
 ## Tradeoffs
 
-| Decision | Alternative | Why this way |
+| Decision | Alternative | Why |
 |---|---|---|
-| Precompute offline, ship static | DuckDB/FastAPI query backend | 89k rows fit in the browser; a backend adds cold starts and an outage mode for nothing |
-| Density binned on the CPU per filter change | deck.gl `HeatmapLayer` (GPU aggregation) | `HeatmapLayer` on deck.gl 9.4 fails to bind its weights texture on some drivers and paints the viewport one saturated blob. It rendered correctly under a software renderer and broke on real hardware. Binning 61k rows takes single-digit milliseconds, so the surface still recomputes on every filter change — deterministic, identical on every GPU, one fewer dependency |
-| Heatmaps recomputed per filter change | Precomputed density rasters per view | Precomputed rasters could only answer the views anticipated at build time; every heatmap here responds to map, day, match and human/bot filters |
-| Columnar JSON | Parquet via DuckDB-WASM | ~3 MB either way at this scale; JSON needs no WASM runtime and is debuggable by opening the file |
-| Commit generated artifacts | Build them on deploy | The brief asks for one repo containing everything; it also keeps the deploy reproducible without the raw dataset |
-| Coverage scored by **distinct matches** | Raw sample counts | Sample counts reward standing still; a designer is asking how many runs came through |
-| Coverage drawn as an interpolated raster | One quad per grid cell | The 10 m grid is an artefact of measurement, not a feature of the map; hard cell edges assert precision the measurement does not have |
-| Coverage shading on a **log** scale, normalised to the selection's 98th percentile | Linear share of total matches | Traffic is heavily skewed — the busiest cell on Ambrose Valley is entered in 16% of matches, the median visited cell in 1.2% — so a linear scale renders genuinely used routes as though untouched |
+| Precompute offline, ship static | DuckDB/FastAPI backend | 89k rows fit in the browser; a backend adds cold starts and an outage mode for nothing |
+| Density binned on CPU per filter change | deck.gl `HeatmapLayer` | `HeatmapLayer` on deck.gl 9.4 fails to bind its weights texture on some drivers and paints the viewport one blob. It rendered correctly under a software renderer and broke on real hardware. Binning 61k rows takes single-digit ms — deterministic on every GPU, one fewer dependency |
+| Columnar JSON | Parquet via DuckDB-WASM | ~3 MB either way; JSON needs no WASM runtime and is debuggable by opening the file |
+| Commit generated artifacts | Build on deploy | The brief asks for one repo containing everything; also keeps the deploy reproducible without the raw dataset |
+| Coverage scored by **distinct matches** | Raw sample counts | Sample counts reward standing still; a designer asks how many runs came through |
+| Coverage as an interpolated raster, log-scaled | One quad per cell, linear | The grid is an artefact of measurement, not a feature of the map. Traffic is heavily skewed — busiest Ambrose cell is entered in 16% of matches, median visited cell in 1.2% — so linear draws used routes as untouched |
+| One cell index feeds coverage *and* the hover readout | Separate passes | "31 runs here" is guaranteed to agree with the shading under the cursor — same numbers, not two calculations that can drift |
+| Magnifier as a second deck.gl view | Upscaling the main canvas | A second view re-renders real layers at higher zoom; upscaling just enlarges the blur |
+| View state in the query string | In-app state only | A designer who finds something must be able to send it; "click these six things" is not a share link |
 | Aggregate and single-match views take opposite defaults | One uniform default | 566 overlapping journeys are unreadable and hide the map; one journey is worth drawing in full |
-| Event identity carried by hue **and** glyph shape | Colour alone | No four-colour set in the validated palette clears the all-pairs CVD gate; death-vs-loot stays in the warning band, so shape, a permanent legend and hover labels carry identity too |
+
+## Accessibility
+
+No four-colour subset of the validated palette clears the all-pairs CVD gate —
+death against loot stays in the warning band whichever four are chosen — so
+event identity is carried by **glyph shape as well as hue**, the legend is
+permanent, and hovering any mark names it.
+
+Map navigation does not require a scroll wheel: zoom in, out and fit are visible
+buttons with keyboard equivalents (`+`, `−`, `0`), and the magnifier (`M`) reads
+dense areas without losing the wider view. Controls are keyboard reachable with
+visible focus rings, animation is suppressed under `prefers-reduced-motion`, and
+the canvas carries a live text equivalent for screen readers.
 
 ## Known limits
 
-The density and coverage surfaces are binned at fixed grid resolutions (220 and
-96 cells per axis), so zooming in past roughly 4x reveals the smoothing rather
-than finer structure. Elevation is unused, so multi-storey interiors collapse to one footprint. There
-is no region-level readout, so a hot POI cannot be quantified against its
-neighbours. There is no side-by-side comparison between two date ranges, which
-is the question live-ops would ask most often. And with 59 matches, Grand Rift's
-figures are directional rather than conclusive.
+Density and coverage are binned at fixed resolutions (220² and 96²), so past
+roughly 4× zoom you see the smoothing rather than finer structure. Elevation is
+unused, so multi-storey interiors collapse to one footprint. There is no
+region-level readout beyond a single cell, and no side-by-side comparison of two
+date ranges — the question live-ops would ask most often. With 59 matches, Grand
+Rift's figures are directional rather than conclusive.

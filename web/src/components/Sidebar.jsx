@@ -16,8 +16,9 @@ export default function Sidebar({
   showHumans, showBots, onToggleActor,
   showPaths, onTogglePaths,
   heatmapMode, onHeatmapChange, showMarkers, onToggleMarkers,
+  showTerminals, onToggleTerminals,
   showCoverage, onToggleCoverage, coverageMode, onCoverageMode,
-  coverageOpacity, onCoverageOpacity,
+  coverageOpacity, onCoverageOpacity, onCopyLink, onSavePng, copied,
 }) {
   const mapList = Object.values(manifest.maps)
 
@@ -149,6 +150,10 @@ export default function Sidebar({
           Journey paths
         </label>
         <label className="toggle">
+          <input type="checkbox" checked={showTerminals} onChange={onToggleTerminals} />
+          Journey start &amp; end
+        </label>
+        <label className="toggle">
           <input type="checkbox" checked={showHumans} onChange={() => onToggleActor('human')} />
           Human players
         </label>
@@ -157,6 +162,19 @@ export default function Sidebar({
           Bots
         </label>
       </section>
+      <section className="share">
+        <h2>Share this view</h2>
+        <div className="chips">
+          <button className="chip" onClick={onCopyLink}>
+            {copied ? 'Link copied' : 'Copy link'}
+          </button>
+          <button className="chip" onClick={onSavePng}>Save PNG</button>
+        </div>
+        <p className="hint">
+          Every filter is in the URL, so the address bar is the share link.
+        </p>
+      </section>
+
     </aside>
   )
 }

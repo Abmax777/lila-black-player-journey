@@ -16,7 +16,7 @@
 /**
  * @param {object} data     decoded map payload
  * @param {string[]} matchDay day string per match index
- * @param {object} f        { days:Set, matchId, showHumans, showBots, timeCutoff }
+ * @param {object} f        { days:Set, matchId, showHumans, showBots, timeCutoff, timeWindow }
  * @param {object} [display] { showPaths, categories:Set } - omit for the data mask
  */
 export function buildRowMask(data, matchDay, f, display) {
@@ -40,6 +40,8 @@ export function buildRowMask(data, matchDay, f, display) {
     if (human ? !f.showHumans : !f.showBots) continue
 
     if (f.timeCutoff != null && data.t[i] > f.timeCutoff) continue
+    // Elapsed-time window, applied across every match at once.
+    if (f.timeWindow && (data.t[i] < f.timeWindow[0] || data.t[i] > f.timeWindow[1])) continue
 
     if (display) {
       if (data.eventIsPosition[data.eventIx[i]]) {

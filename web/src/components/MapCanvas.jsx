@@ -1,24 +1,28 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import DeckGL from '@deck.gl/react'
 import { OrthographicView, COORDINATE_SYSTEM } from '@deck.gl/core'
 import { BitmapLayer, PathLayer, ScatterplotLayer, IconLayer } from '@deck.gl/layers'
 
 import { WORLD } from '../lib/data.js'
-import { CATEGORY, PATH, HEAT_RAMP, OOB } from '../lib/palette.js'
+import { CATEGORY, PATH, OOB } from '../lib/palette.js'
 import { coverageTexture } from '../lib/coverage.js'
 import { densityTexture } from '../lib/density.js'
 import Tooltip from './Tooltip.jsx'
+import ZoomControls from './ZoomControls.jsx'
 
-const VIEW = new OrthographicView({ id: 'ortho', flipY: false })
+/** The magnifier renders the same layers again, this much closer in. */
+const LOUPE_ZOOM = 2.6
+const LOUPE_SIZE = 230
 
-/**
- * Glyph atlas drawn at runtime, so each event category gets a distinct shape
- * without shipping image assets. Shape is the accessibility channel that backs
- * up hue -- see lib/palette.js.
- */
+const MAIN_VIEW = new OrthographicView({
+  id: 'main',
+  flipY: false,
+  controller: { dragRotate: false, scrollZoom: { speed: 0.02, smooth: true } },
+})
+
 const ICON_SIZE = 64
 function makeIconAtlas() {
-  const shapes = ['triangle', 'cross', 'diamond', 'circle']
+  const shapes = ['triangle', 'cross', 'diamond', 'circle', 'square']
   const canvas = document.createElement('canvas')
   canvas.width = ICON_SIZE * shapes.length
   canvas.height = ICON_SIZE
@@ -27,20 +31,19 @@ function makeIconAtlas() {
   const r = ICON_SIZE * 0.34
 
   shapes.forEach((shape, i) => {
-    const ox = i * ICON_SIZE
     ctx.save()
-    ctx.translate(ox + c, c)
+    ctx.translate(i * ICON_SIZE + c, c)
     ctx.beginPath()
     if (shape === 'circle') {
       ctx.arc(0, 0, r, 0, Math.PI * 2)
     } else if (shape === 'triangle') {
-      ctx.moveTo(0, -r)
-      ctx.lineTo(r * 0.92, r * 0.72)
-      ctx.lineTo(-r * 0.92, r * 0.72)
+      ctx.moveTo(0, -r); ctx.lineTo(r * 0.92, r * 0.72); ctx.lineTo(-r * 0.92, r * 0.72)
       ctx.closePath()
     } else if (shape === 'diamond') {
       ctx.moveTo(0, -r); ctx.lineTo(r, 0); ctx.lineTo(0, r); ctx.lineTo(-r, 0)
       ctx.closePath()
+    } else if (shape === 'square') {
+      ctx.rect(-r * 0.78, -r * 0.78, r * 1.56, r * 1.56)
     } else {
       const a = r * 0.42
       const b = r
@@ -52,7 +55,6 @@ function makeIconAtlas() {
     }
     ctx.fillStyle = '#ffffff'
     ctx.fill()
-    // 2px surface ring so overlapping marks stay separable
     ctx.lineWidth = 5
     ctx.strokeStyle = 'rgba(13,13,13,0.85)'
     ctx.stroke()
@@ -67,10 +69,16 @@ function makeIconAtlas() {
 }
 
 export default function MapCanvas({
-  mapMeta, paths, markers, heatmap, coverage, coverageMode, coverageOpacity,
-  showPaths, viewState, onViewStateChange,
+  mapMeta, paths, markers, terminals, heatmap, coverage, coverageMode, coverageOpacity,
+  showPaths, viewState, onViewStateChange, onZoom, onResetView,
+  magnifier, onToggleMagnifier, onCursorCell, cellReadout,
 }) {
   const [hover, setHover] = useState(null)
+  const [cursor, setCursor] = useState(null)
+  const [size, setSize] = useState({ width: 0, height: 0 })
+  const wrapRef = useRef(null)
+  const deckRef = useRef(null)
+
   const icons = useMemo(() => makeIconAtlas(), [])
   const coverageImage = useMemo(
     () => (coverage ? coverageTexture(coverage, coverageMode, coverageOpacity) : null),
@@ -81,14 +89,60 @@ export default function MapCanvas({
     [heatmap],
   )
 
-  // Marks thin out as the selection grows, so an aggregate view reads as a
-  // distribution rather than a solid block of colour.
-  const markScale = markers.length > 4000 ? 0.6 : markers.length > 1200 ? 0.78 : 1
-  const pathAlpha = Math.max(14, Math.min(170, Math.round(2600 / Math.max(1, paths.length))))
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el) return undefined
+    const measure = () => {
+      const r = el.getBoundingClientRect()
+      setSize({ width: r.width, height: r.height })
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
-  // Minimaps are square in UV space; source art aspect is preserved by fitting
-  // the longest edge, so the bitmap always covers exactly [0..WORLD]^2.
+  const handleHover = useCallback((info) => {
+    if (info.coordinate) {
+      setCursor({ x: info.coordinate[0], y: info.coordinate[1] })
+      onCursorCell?.(info.coordinate[0], info.coordinate[1])
+    } else {
+      setCursor(null)
+      onCursorCell?.(null, null)
+    }
+  }, [onCursorCell])
+
   const bounds = [0, 0, WORLD, WORLD]
+  const showLoupe = magnifier && cursor && size.width > LOUPE_SIZE * 1.6
+
+  const views = useMemo(() => {
+    if (!showLoupe) return [MAIN_VIEW]
+    return [
+      MAIN_VIEW,
+      new OrthographicView({
+        id: 'loupe',
+        x: Math.round(size.width - LOUPE_SIZE - 16),
+        y: 16,
+        width: LOUPE_SIZE,
+        height: LOUPE_SIZE,
+        flipY: false,
+        clear: true,
+      }),
+    ]
+  }, [showLoupe, size.width])
+
+  const viewStates = useMemo(() => {
+    const main = viewState
+    if (!showLoupe) return { main }
+    return {
+      main,
+      loupe: {
+        ...main,
+        target: [cursor.x, cursor.y, 0],
+        zoom: Math.min(main.maxZoom ?? 5, main.zoom + LOUPE_ZOOM),
+      },
+    }
+  }, [viewState, showLoupe, cursor])
 
   const layers = [
     new BitmapLayer({
@@ -100,18 +154,14 @@ export default function MapCanvas({
 
     // Unused ground sits directly on the minimap, beneath every other layer,
     // so it reads as a property of the map rather than as data laid on top.
-    // Uploaded as an image so the GPU interpolates between cells: the grid is
-    // an artefact of how we measure, not a feature of the map.
     coverageImage && new BitmapLayer({
       id: `coverage-${coverageMode}`,
       image: coverageImage,
       bounds,
       coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
       textureParameters: {
-        minFilter: 'linear',
-        magFilter: 'linear',
-        addressModeU: 'clamp-to-edge',
-        addressModeV: 'clamp-to-edge',
+        minFilter: 'linear', magFilter: 'linear',
+        addressModeU: 'clamp-to-edge', addressModeV: 'clamp-to-edge',
       },
     }),
 
@@ -121,10 +171,8 @@ export default function MapCanvas({
       bounds,
       coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
       textureParameters: {
-        minFilter: 'linear',
-        magFilter: 'linear',
-        addressModeU: 'clamp-to-edge',
-        addressModeV: 'clamp-to-edge',
+        minFilter: 'linear', magFilter: 'linear',
+        addressModeU: 'clamp-to-edge', addressModeV: 'clamp-to-edge',
       },
     }),
 
@@ -133,8 +181,8 @@ export default function MapCanvas({
       data: paths,
       getPath: (d) => d.path,
       getColor: (d) => (d.human
-        ? [...PATH.human.rgb, Math.min(PATH.human.opacity, pathAlpha)]
-        : [...PATH.bot.rgb, Math.min(PATH.bot.opacity, pathAlpha)]),
+        ? [...PATH.human.rgb, Math.min(PATH.human.opacity, pathAlpha(paths.length))]
+        : [...PATH.bot.rgb, Math.min(PATH.bot.opacity, pathAlpha(paths.length))]),
       getWidth: (d) => (d.human ? PATH.human.width : PATH.bot.width),
       widthUnits: 'pixels',
       widthMinPixels: 1,
@@ -142,10 +190,29 @@ export default function MapCanvas({
       jointRounded: true,
       pickable: false,
       coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      updateTriggers: { getColor: paths.length },
     }),
 
-    // Out-of-bounds halo, drawn under the glyph so the anomaly is visible
-    // without changing the event's own colour.
+    // Where journeys begin and end. Drawn as rings rather than filled glyphs so
+    // they read as annotations on a route rather than as more events.
+    terminals && new ScatterplotLayer({
+      id: 'terminals',
+      data: terminals,
+      getPosition: (d) => d.position,
+      getRadius: 4.2,
+      radiusUnits: 'pixels',
+      radiusMinPixels: 3,
+      filled: true,
+      stroked: true,
+      getFillColor: (d) => (d.kind === 'entry' ? [...TERMINAL.entry, 170] : [...TERMINAL.exit, 170]),
+      getLineColor: (d) => (d.kind === 'entry' ? TERMINAL.entry : TERMINAL.exit),
+      lineWidthUnits: 'pixels',
+      getLineWidth: 1.4,
+      pickable: true,
+      onHover: (info) => setHover(info.object ? info : null),
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+    }),
+
     new ScatterplotLayer({
       id: 'oob-halo',
       data: markers.filter((m) => m.oob),
@@ -169,27 +236,87 @@ export default function MapCanvas({
       getIcon: (d) => CATEGORY[d.category].shape,
       getPosition: (d) => d.position,
       getColor: (d) => CATEGORY[d.category].rgb,
-      getSize: (d) => CATEGORY[d.category].radius * 3.2 * markScale,
+      getSize: (d) => CATEGORY[d.category].radius * 3.2 * markScale(markers.length),
       sizeUnits: 'pixels',
       sizeMinPixels: 5,
-      updateTriggers: { getSize: markScale },
       pickable: true,
       onHover: (info) => setHover(info.object ? info : null),
       coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      updateTriggers: { getSize: markers.length },
     }),
   ].filter(Boolean)
 
   return (
-    <div className="canvas-wrap">
+    <div className="canvas-wrap" ref={wrapRef}>
       <DeckGL
-        views={VIEW}
-        viewState={viewState}
-        onViewStateChange={onViewStateChange}
-        controller={{ dragRotate: false, scrollZoom: { speed: 0.02, smooth: true } }}
+        ref={deckRef}
+        views={views}
+        viewState={viewStates}
+        onViewStateChange={({ viewId, viewState: vs, interactionState }) => {
+          if (viewId && viewId !== 'main') return
+          onViewStateChange(vs, interactionState)
+        }}
         layers={layers}
-        getCursor={({ isDragging }) => (isDragging ? 'grabbing' : 'grab')}
+        onHover={handleHover}
+        getCursor={({ isDragging }) => (isDragging ? 'grabbing' : 'crosshair')}
+        glOptions={{ preserveDrawingBuffer: true }}
       />
+
+      {showLoupe && (
+        <div
+          className="loupe-frame"
+          style={{ width: LOUPE_SIZE, height: LOUPE_SIZE, right: 16, top: 16 }}
+          aria-hidden="true"
+        >
+          <span className="loupe-label">{Math.round(2 ** LOUPE_ZOOM)}×</span>
+        </div>
+      )}
+
+      <ZoomControls
+        zoom={viewState.zoom}
+        minZoom={viewState.minZoom ?? -2}
+        maxZoom={viewState.maxZoom ?? 5}
+        onZoom={onZoom}
+        onReset={onResetView}
+        magnifier={magnifier}
+        onToggleMagnifier={onToggleMagnifier}
+      />
+
+      {cellReadout && !hover && <CellReadout readout={cellReadout} />}
       {hover && <Tooltip info={hover} />}
+    </div>
+  )
+}
+
+export const TERMINAL = {
+  entry: [158, 197, 244],
+  exit: [217, 89, 38],
+}
+
+function pathAlpha(count) {
+  return Math.max(14, Math.min(170, Math.round(2600 / Math.max(1, count))))
+}
+
+function markScale(count) {
+  return count > 4000 ? 0.6 : count > 1200 ? 0.78 : 1
+}
+
+function CellReadout({ readout }) {
+  return (
+    <div className="cell-readout" role="status" aria-live="polite">
+      <div className="cell-readout-head">
+        {readout.inside ? 'Playable ground' : 'Outside the map'}
+        <span>{readout.sizeLabel}</span>
+      </div>
+      {readout.inside && (
+        <dl>
+          <dt>Runs through here</dt>
+          <dd>{readout.matches.toLocaleString()}<em>{readout.share}</em></dd>
+          <dt>Kills</dt><dd>{readout.kill.toLocaleString()}</dd>
+          <dt>Deaths</dt><dd>{readout.death.toLocaleString()}</dd>
+          <dt>Loot</dt><dd>{readout.loot.toLocaleString()}</dd>
+        </dl>
+      )}
     </div>
   )
 }

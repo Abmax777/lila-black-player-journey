@@ -130,6 +130,48 @@ export function buildMarkers(data, rowMask) {
   return out
 }
 
+/**
+ * First and last movement sample of every player-journey.
+ *
+ * Where a run begins shapes everything downstream -- which POI is reachable
+ * first, which direction the map is entered from. Where it ends says whether
+ * the player died, extracted, or stopped being sampled.
+ *
+ * Derived rather than stored: the payload already carries every sample, and a
+ * journey's endpoints are just its extremes in `t`.
+ */
+export function buildTerminals(data, rowMask) {
+  const ends = new Map()
+  for (let i = 0; i < data.n; i++) {
+    if (!rowMask[i]) continue
+    if (!data.eventIsPosition[data.eventIx[i]]) continue
+    const key = data.matchIx[i] * 100000 + data.userIx[i]
+    const entry = ends.get(key)
+    if (!entry) {
+      ends.set(key, { first: i, last: i })
+      continue
+    }
+    if (data.t[i] < data.t[entry.first]) entry.first = i
+    if (data.t[i] > data.t[entry.last]) entry.last = i
+  }
+
+  const out = []
+  for (const { first, last } of ends.values()) {
+    if (first === last) continue                 // a single sample is not a journey
+    for (const [i, kind] of [[first, 'entry'], [last, 'exit']]) {
+      out.push({
+        position: [data.x[i], data.y[i]],
+        kind,
+        user: data.users[data.userIx[i]],
+        human: data.isHuman[i] === 1,
+        match: data.matches[data.matchIx[i]],
+        t: data.t[i],
+      })
+    }
+  }
+  return out
+}
+
 export function formatClock(seconds) {
   const s = Math.max(0, Math.round(seconds))
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`

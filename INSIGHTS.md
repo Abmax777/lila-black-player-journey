@@ -45,46 +45,64 @@ one is carrying the entire player experience.
 
 ---
 
-## 2. Nearly a third of Ambrose Valley has never had a player on it
+## 2. Every run starts in one of about twenty places, and the rest of the rim is dead
 
-**What caught my eye.** The traffic heatmap has a pronounced hole around the
-edge of every map. I built a coverage view to measure it rather than squint at
-it: playable ground scored by how many distinct matches passed through each
-~10 m cell, measured against a landmass mask so ocean and off-map void are
-excluded rather than counted as "ignored".
+**What caught my eye.** Turning on journey start and end points, the starts did
+not scatter — they landed in a handful of tight clusters around the map edge,
+while the ends spread right across the interior.
 
-**The evidence.**
+**The evidence.** Taking the first and last movement sample of every human
+journey, over a ~10 m grid:
 
-| Map | Human matches | Never had a human on it | Visited by fewer than 5 matches |
-|---|---|---|---|
-| Ambrose Valley | 553 | **30.8%** | 63.3% |
-| Lockdown | 170 | **58.8%** | 85.9% |
-| Grand Rift | 57 | **61.0%** | 96.8% |
+| Map | Human journeys | Distinct start cells | Share of playable ground | Top 10 cells hold |
+|---|---|---|---|---|
+| Ambrose Valley | 554 | **22** | 0.5% | **81%** of all starts |
+| Lockdown | 170 | 21 | 0.5% | 76% |
+| Grand Rift | 57 | 16 | 0.4% | 83% |
 
-Counting bot traffic as well, those figures fall to 26.7%, 51.8% and 50.2%.
-**Bots consistently reach ground humans never touch** — on Grand Rift the gap is
-eleven percentage points. Bot paths are nav-mesh output rather than player
-choice, so the humans-only column is the one that describes design intent, and
-it is the worse of the two.
+The funnel is directional. Median distance from map centre is **0.43 for
+starts against 0.22 for ends** on Ambrose Valley, and the same inward pattern
+holds on all three maps. Players enter at the rim and their runs finish in the
+middle.
 
-The shape matters more than the number: the dead ground is a thick, nearly
-continuous band around the perimeter of all three maps, with the interior alive.
-Grand Rift's human traffic collapses almost entirely to the Mine Pit corridor.
+That explains the other half of the picture. Ground never entered by a human
+run is **30.8%** of Ambrose Valley, **58.8%** of Lockdown and **61.0%** of Grand
+Rift, and it forms a near-continuous band around the perimeter. The rim is not
+uniformly ignored — it has about twenty hot pinpricks on it and nothing in
+between, because every run lands at a fixed point and immediately heads inward.
+Nobody ever travels laterally around the edge, because there is no reason to.
 
-**Is it actionable, and what moves.** Directly. Two options pointing in opposite
-directions, so it is a design decision rather than a fix: shrink the playable
-bounds to match observed play and reclaim the art, collision, nav-mesh and
-memory budget spent on the rim; or move extraction points and high-value loot
-outward to pull traffic into it. Metrics affected: map utilisation percentage,
-POI visit distribution, average distance travelled per match, and — if bounds
-shrink — streaming and memory budget.
+Counting bot traffic as well, unused ground falls to 26.7%, 51.8% and 50.2%:
+**bots consistently reach ground humans never touch**. Bot paths are nav-mesh
+output rather than player choice, so the humans-only column is the one that
+describes design intent, and it is the worse of the two.
+
+One further detail. Ends are far more dispersed than starts — 286 distinct
+cells against 22 on Ambrose Valley, with no clustering at all. If runs were
+finishing at fixed extraction points we would expect the ends to cluster the
+way the starts do. They do not, which points at most runs ending in death
+rather than extraction. The event schema has no `Extract` event to confirm it
+either way, which is itself worth raising.
+
+**Is it actionable, and what moves.** Yes, and the lever is not where I first
+assumed. Spawns are already on the rim, so adding more will not populate it —
+what is missing is any reason to travel *along* it. Options: give the rim
+lateral objectives or routes between spawn clusters; move extraction outward so
+the run ends where it started rather than in the middle; or accept the observed
+shape and shrink the playable bounds, reclaiming the art, collision, nav-mesh
+and memory budget the dead band currently costs. Twenty-two start points across
+a 900 m map also tightly constrains route variety — worth knowing before
+attributing repetitive play to the map layout itself. Metrics affected: map
+utilisation, POI visit distribution, route diversity per player, average
+distance travelled, and streaming budget if the bounds change.
 
 **Why a level designer should care.** The effective playable area is
 substantially smaller than the designed one, so POI density is higher in
-practice than on the design document and every encounter is happening in a
-tighter space than it was balanced for. The perimeter is being paid for in
-full — art time, collision, nav mesh, memory — and returning nothing. On
-Lockdown and Grand Rift more than half the map is in that category.
+practice than on the design document and every encounter happens in a tighter
+space than it was balanced for. More than that, the shape of play is fixed
+before the player does anything: one of twenty-odd entry points, then inward.
+Any design intent that depends on players approaching a POI from an
+unpredictable direction is not being tested.
 
 ## 3. The storm cannot kill you before minute eleven, and most matches end at six
 

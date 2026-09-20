@@ -16,36 +16,55 @@ Built for the Lila Games Product Engineer written test. See
 
 - **Traffic, kill, death and loot heatmaps**, rebinned on every filter change
   rather than precomputed per view
-- **Coverage view** — playable ground shaded by how many distinct matches
-  passed through it, so unwalked ground is what reads rather than what you
-  have to notice is missing. Gradient or unvisited-only, with an opacity control
+- **Coverage view** — playable ground shaded by how many distinct matches passed
+  through it, so unwalked ground is what reads rather than what you have to
+  notice is missing. Gradient or unvisited-only, with an opacity control
+- **Match-phase scrubber** — pick a time window and apply it to *every* match at
+  once: where is everyone between minute 1 and 2, versus minute 10 and 11
+- **Journey start and end points**, derived from the first and last sample of
+  each run
 - **Journey paths** for any match, with human players and bots visually separated
 - **Event markers** for kills, deaths, loot and storm deaths, each carrying a
   distinct colour *and* glyph shape
+- **Hover readout** — point anywhere and get that cell's numbers: runs through
+  it, kills, deaths, loot
+- **Magnifier** — a 6× inset that renders the real layers, not upscaled pixels
 - **Filters** by map, day, match, and human/bot
 - **Timeline playback** to watch a single match unfold at 1×, 4× or 12×
 - **Off-map flagging** for the 41 events that fall outside the drawn landmass
+- **Shareable links** — every filter lives in the URL — and **PNG export**
+
+## Accessibility
+
+- Zoom in, zoom out and fit are visible buttons, not just scroll-wheel gestures,
+  and each has a keyboard shortcut (`+`, `−`, `0`; `M` toggles the magnifier)
+- The magnifier exists for reading dense areas without losing the wider view
+- Every control is reachable by keyboard with a visible focus ring
+- The canvas has a live text equivalent for screen readers, restating what the
+  current view contains
+- Animation is suppressed under `prefers-reduced-motion`
+- Event identity is carried by glyph shape as well as colour, so it survives
+  colour-vision deficiency (see ARCHITECTURE.md for the validator results)
 
 ## A five-minute walkthrough
 
 1. **It opens on Ambrose Valley with traffic density.** The hot buildings and the
    cold edges are visible before you touch anything.
-2. **Tick "Highlight unused ground."** Coverage shades the map by how many
-   runs came through — darkest is untouched. 26.7% of playable Ambrose Valley
-   has never been entered across 566 matches, and it's almost all perimeter.
-   Switch to "Unvisited only" for the hard edge, or drag the opacity down to
-   read the terrain underneath.
-3. **Untick Bots.** Unused ground rises from 26.7% to 30.8% — bots reach
-   ground players never do, and bot paths are nav-mesh output rather than
-   player choice, so this is the figure that describes design intent.
-4. **Switch the heatmap to Kills.** Combat concentrates hard in the central
-   corridor, not on the flank routes.
-5. **Pick a match from the dropdown.** Paths, markers and the timeline appear;
-   the view switches from aggregate to single-journey automatically.
-6. **Press play.** Watch the run: drop, loot, bot encounters, and — if the match
-   runs past eleven minutes — the storm.
-7. **Switch to Grand Rift.** 59 matches against Ambrose's 566, and 61% of its
-   ground never touched by a human.
+2. **Tick "Highlight unused ground."** Coverage shades the map by how many runs
+   came through — darkest is untouched. 26.7% of playable Ambrose Valley has
+   never been entered across 566 matches, and it's almost all perimeter.
+3. **Untick Bots.** Unused ground rises to 30.8% — bots reach ground players
+   never do, and bot paths are nav-mesh output rather than player choice.
+4. **Tick "Journey start & end."** Starts land in about twenty tight clusters on
+   the rim; ends spread across the interior. Every run enters at a fixed point
+   and heads inward.
+5. **Pick a 1-minute phase window and drag it.** At 1:00 there are 561 matches
+   spread across every POI. At 10:00 there are 130, converged on one hotspot.
+6. **Switch the heatmap to Kills.** Combat concentrates in the central corridor,
+   not on the flank routes.
+7. **Pick a match, press play.** One run: drop, loot, bot encounters, and — if it
+   lasts past eleven minutes — the storm.
+8. **Hit "Copy link".** The URL carries every filter, so that view is shareable.
 
 ## Running it locally
 
