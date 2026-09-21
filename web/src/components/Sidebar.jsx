@@ -250,7 +250,7 @@ export default function Sidebar({
         the designer arranges them however their screen suits.
       */}
       <section className="compare">
-        <h2>Compare side by side</h2>
+        <h2>Compare in another window</h2>
         <div className="chips">
           {showHumans && showBots && (
             <button
@@ -285,7 +285,10 @@ export default function Sidebar({
             </button>
           ))}
         </div>
-        <p className="hint">Opens a second window on the same ground, framed the same way.</p>
+        <p className="hint">
+          Opens this exact view — same zoom, same framing — with one thing changed.
+          Drag it alongside this one.
+        </p>
       </section>
 
       <section className="share">
