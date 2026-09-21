@@ -23,7 +23,7 @@ import Shortcuts from './components/Shortcuts.jsx'
 import FirstRun from './components/FirstRun.jsx'
 import Tour from './components/Tour.jsx'
 import PhaseScrubber from './components/PhaseScrubber.jsx'
-import { readState, writeState, exportCanvas } from './lib/urlstate.js'
+import { readState, writeState, comparisonUrl, exportCanvas } from './lib/urlstate.js'
 
 const HEATMAP_LABEL = { traffic: 'Traffic', kill: 'Kill', death: 'Death', loot: 'Loot' }
 const BASE_VIEW = { target: [WORLD / 2, WORLD / 2, 0], zoom: -0.55, minZoom: -2, maxZoom: 5 }
@@ -64,7 +64,11 @@ export default function App() {
   const [playing, setPlaying] = useState(false)
   const [speed, setSpeed] = useState(4)
 
-  const [viewState, setViewState] = useState(BASE_VIEW)
+  // A comparison link carries a camera; userMoved stops the fit-on-mount from
+  // throwing it away, which would leave the two windows framed differently.
+  const [viewState, setViewState] = useState(
+    initial.camera ? { ...BASE_VIEW, ...initial.camera, userMoved: true } : BASE_VIEW,
+  )
   const [magnifier, setMagnifier] = useState(false)
   const [phaseStart, setPhaseStart] = useState(initial.phaseStart)
   const [phaseWindow, setPhaseWindow] = useState(initial.phaseWindow)
@@ -307,6 +311,24 @@ export default function App() {
     setAutoChanged(names)
     setTimeout(() => setAutoChanged([]), 1600)
   }, [])
+
+  /**
+   * Open this view again in another window, with one thing changed.
+   *
+   * `alsoHere` narrows the current window to the other half of the pair, so
+   * "humans vs bots" is one click rather than four: this window keeps humans,
+   * the new one takes bots. It is announced like any other control the app
+   * moves on its own, and the checkboxes undo it.
+   */
+  const compareWith = useCallback((overrides, alsoHere, announce) => {
+    window.open(comparisonUrl(shareState, overrides, viewState), '_blank', 'noopener')
+    if (alsoHere) {
+      if ('showHumans' in alsoHere) setShowHumans(alsoHere.showHumans)
+      if ('showBots' in alsoHere) setShowBots(alsoHere.showBots)
+      if ('heatmapMode' in alsoHere) setHeatmapMode(alsoHere.heatmapMode)
+      if (announce) flagAuto(announce)
+    }
+  }, [shareState, viewState, flagAuto])
 
   const onCursorCell = useCallback((x, y) => {
     setCursorCell(x == null ? null : cellAt(x, y, grid))
@@ -584,6 +606,8 @@ export default function App() {
         onStartTour={() => setTourOpen(true)}
         matchSort={matchSort}
         onMatchSort={setMatchSort}
+        onCompare={compareWith}
+        otherMaps={Object.values(boot.manifest.maps).filter((m) => m.id !== mapId)}
         onCopyLink={copyLink}
         onSavePng={savePng}
         copied={copied}

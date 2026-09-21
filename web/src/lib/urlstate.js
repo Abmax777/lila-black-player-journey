@@ -49,10 +49,19 @@ export function readState() {
     overlayOpacity: (num('op') ?? DEFAULTS.op) / 100,
     phaseStart: Number.isFinite(phStart) ? phStart : 0,
     phaseWindow: Number.isFinite(phWindow) ? phWindow : null,
+    // Only ever present on a comparison link.
+    camera: readCamera(get('c'), num('z')),
   }
 }
 
-export function writeState(s) {
+function readCamera(centre, zoom) {
+  if (!centre || !Number.isFinite(zoom)) return null
+  const [x, y] = centre.split(',').map(Number)
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null
+  return { target: [x, y, 0], zoom }
+}
+
+function toQuery(s) {
   const q = new URLSearchParams()
   const put = (k, v) => { if (String(v) !== String(DEFAULTS[k])) q.set(k, v) }
 
@@ -70,10 +79,32 @@ export function writeState(s) {
   put('op', Math.round(s.overlayOpacity * 100))
   put('ph', s.phaseWindow ? `${Math.round(s.phaseStart)}-${s.phaseWindow}` : '')
 
-  const qs = q.toString()
+  return q
+}
+
+export function writeState(s) {
+  const qs = toQuery(s).toString()
   const url = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
   window.history.replaceState(null, '', url)
   return window.location.origin + url
+}
+
+/**
+ * A link to this view with something deliberately changed, to open beside it.
+ *
+ * This one carries the camera, which the share link deliberately does not:
+ * writing zoom and target on every pan would churn the address bar and lengthen
+ * a link people paste into Slack, for no gain. Two windows being compared are a
+ * different case -- if they are not framed on the same ground the comparison is
+ * worthless, so the camera rides along here and nowhere else.
+ */
+export function comparisonUrl(state, overrides, camera) {
+  const q = toQuery({ ...state, ...overrides })
+  if (camera) {
+    q.set('z', camera.zoom.toFixed(3))
+    q.set('c', `${Math.round(camera.target[0])},${Math.round(camera.target[1])}`)
+  }
+  return `${window.location.origin}${window.location.pathname}?${q.toString()}`
 }
 
 /**

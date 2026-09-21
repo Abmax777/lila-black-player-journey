@@ -51,6 +51,7 @@ export default function Sidebar({
   coverageMode, onCoverageMode,
   overlayOpacity, onOverlayOpacity,
   onCopyLink, onSavePng, copied,
+  onCompare, otherMaps,
   matchSort, onMatchSort, autoChanged = [], onShowIntro, onStartTour,
 }) {
   const mapList = Object.values(manifest.maps)
@@ -241,6 +242,50 @@ export default function Sidebar({
             ? 'Playback is available for a single run.'
             : 'Pick one run to scrub through it on the timeline.'}
         </p>
+      </section>
+
+      {/*
+        Comparison is two windows, not a split canvas: every view already
+        rebuilds itself from its own URL, so a second window costs nothing and
+        the designer arranges them however their screen suits.
+      */}
+      <section className="compare">
+        <h2>Compare side by side</h2>
+        <div className="chips">
+          {showHumans && showBots && (
+            <button
+              className="chip"
+              title="Keep humans here, open bots in a new window"
+              onClick={() => onCompare(
+                { showHumans: false, showBots: true },
+                { showBots: false },
+                ['bots'],
+              )}
+            >
+              Humans vs bots
+            </button>
+          )}
+          {(overlay === 'kill' || overlay === 'death') && (
+            <button
+              className="chip"
+              title="Open the opposite combat overlay in a new window"
+              onClick={() => onCompare({ heatmapMode: overlay === 'kill' ? 'death' : 'kill' })}
+            >
+              {overlay === 'kill' ? 'Kills vs deaths' : 'Deaths vs kills'}
+            </button>
+          )}
+          {otherMaps.map((m) => (
+            <button
+              key={m.id}
+              className="chip"
+              title={`Open this same view on ${m.label} in a new window`}
+              onClick={() => onCompare({ mapId: m.id })}
+            >
+              vs {m.label}
+            </button>
+          ))}
+        </div>
+        <p className="hint">Opens a second window on the same ground, framed the same way.</p>
       </section>
 
       <section className="share">
