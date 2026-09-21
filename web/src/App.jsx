@@ -6,7 +6,7 @@ import {
 import { buildRowMask, summarise } from './lib/selectors.js'
 import { buildCellIndex, cellAt } from './lib/cells.js'
 import { computeCoverage } from './lib/coverage.js'
-import { computeDensity } from './lib/density.js'
+import { computeDensity, blurRadius, SMOOTH_METRES } from './lib/density.js'
 import { analyseArea } from './lib/area.js'
 import { CATEGORY_ORDER } from './lib/palette.js'
 import MapCanvas from './components/MapCanvas.jsx'
@@ -199,14 +199,21 @@ export default function App() {
     if (!mapData || !dataMask || heatmapMode === 'none') return null
     const traffic = heatmapMode === 'traffic'
     const field = computeDensity(
-      mapData, dataMask, traffic ? null : heatmapMode, traffic ? 4 : 6,
-      mapMeta?.landmask, mapMeta?.coverageGrid,
+      mapData,
+      dataMask,
+      traffic ? null : heatmapMode,
+      blurRadius(traffic ? SMOOTH_METRES.traffic : SMOOTH_METRES.event, mapMeta?.scale),
+      mapMeta?.landmask,
+      mapMeta?.coverageGrid,
     )
     return field
       ? {
           key: heatmapMode,
           field,
           lift: traffic ? 0.8 : 0.58,
+          // Movement covers the map, so every low cell there is a real reading.
+          // Events do not, so anything under the floor is kernel tail and is cut.
+          floor: traffic ? 0 : 0.18,
           // Tuned baseline per overlay, times the user's multiplier.
           alpha: (traffic ? 0.8 : 0.92) * overlayOpacity,
         }

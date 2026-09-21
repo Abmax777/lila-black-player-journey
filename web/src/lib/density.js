@@ -20,6 +20,32 @@ import { HEAT_RAMP } from './palette.js'
 export const DENSITY_GRID = 220
 
 /**
+ * Smoothing radii, in world metres.
+ *
+ * Expressed as a distance rather than a count of grid cells because the grid
+ * is fixed at 220x220 over the *normalised* map, so one cell is 2.6 m on Grand
+ * Rift and 4.5 m on Lockdown. A constant cell radius therefore meant the same
+ * kernel covered wildly different amounts of ground per map, and on every map
+ * it was far too wide for sparse events: a single kill painted roughly 50 m of
+ * haze in each direction, so an area with two kills in it looked like an area
+ * with fighting spilling well past its edges.
+ *
+ * These numbers are the claim the surface makes. Events pool within about 25 m
+ * -- close enough to be the same fight. Movement pools wider because a route is
+ * a corridor, not a point.
+ */
+export const SMOOTH_METRES = { traffic: 45, event: 25 }
+
+/**
+ * Convert a smoothing distance to a box-blur radius in grid cells.
+ * Three passes of radius r reach 3r cells, so r is sized to the target reach.
+ */
+export function blurRadius(metres, scale) {
+  const cell = (scale || 1000) / DENSITY_GRID
+  return Math.max(1, Math.round(metres / cell / 3))
+}
+
+/**
  * Bin the selected rows into a density grid and smooth it.
  *
  * @param {object} data      decoded map payload
@@ -111,8 +137,10 @@ function blurAxis(src, dst, grid, radius, horizontal) {
  *                          the map, so they need less lift than sparse
  *                          combat events or the surface swallows the art.
  * @param {number} alphaScale  overall opacity of the surface
+ * @param {number} floor    normalised density below which a cell is kernel
+ *                          tail rather than signal, and is not drawn at all
  */
-export function densityTexture({ field, grid, land }, lift = 0.5, alphaScale = 1) {
+export function densityTexture({ field, grid, land }, lift = 0.5, alphaScale = 1, floor = 0) {
   const nonZero = []
   for (let i = 0; i < field.length; i++) if (field[i] > 1e-6) nonZero.push(field[i])
   if (!nonZero.length) return null
@@ -126,7 +154,16 @@ export function densityTexture({ field, grid, land }, lift = 0.5, alphaScale = 1
   const img = ctx.createImageData(grid, grid)
 
   for (let i = 0; i < grid * grid; i++) {
-    const t = Math.min(1, (field[i] / ceiling) ** lift)
+    // Below the floor a cell holds nothing but the far tail of some other
+    // cell's kernel. Drawing it claims events happened where none did, so it
+    // is cut rather than faded. The remainder is restretched to 0..1 so the
+    // cut costs contrast at the top of the scale, not the whole surface.
+    const raw = Math.min(1, field[i] / ceiling)
+    if (floor > 0 && raw <= floor) {
+      img.data[i * 4 + 3] = 0
+      continue
+    }
+    const t = (floor > 0 ? (raw - floor) / (1 - floor) : raw) ** lift
     const [r, g, b, a] = sampleRamp(t)
     const o = i * 4
     img.data[o] = r
