@@ -87,6 +87,7 @@ export default function MapCanvas({
   const [hover, setHover] = useState(null)
   const [cursor, setCursor] = useState(null)
   const [pointerPx, setPointerPx] = useState(null)
+  const [glKey, setGlKey] = useState(0)
   const [size, setSize] = useState({ width: 0, height: 0 })
   const wrapRef = useRef(null)
   const deckRef = useRef(null)
@@ -115,6 +116,21 @@ export default function MapCanvas({
     return () => ro.disconnect()
   }, [])
 
+  // A lost context leaves the canvas frozen on its last frame while React
+  // keeps updating everything around it -- the rulers move, the map does not.
+  // Remounting deck gives it a fresh canvas and a fresh context.
+  useEffect(() => {
+    if (!(size.width > 0 && size.height > 0)) return undefined
+    const canvas = wrapRef.current?.querySelector('canvas')
+    if (!canvas) return undefined
+    const onLost = (e) => {
+      e.preventDefault()
+      setGlKey((k) => k + 1)
+    }
+    canvas.addEventListener('webglcontextlost', onLost)
+    return () => canvas.removeEventListener('webglcontextlost', onLost)
+  }, [size.width, size.height, glKey])
+
   const handleHover = useCallback((info) => {
     if (info.x != null && info.y != null) setPointerPx({ x: info.x, y: info.y })
     // The loupe is a second, more-zoomed view of wherever `cursor` already is.
@@ -141,12 +157,17 @@ export default function MapCanvas({
   // bottom-left permanently, and the hover readout sits bottom-right for as
   // long as the cursor is over the map, which is exactly whenever the loupe is
   // up. Sent to either of those, the magnified view is drawn over.
-  const loupeCorner = useMemo(() => {
-    const right = { x: size.width - LOUPE_SIZE - LOUPE_MARGIN, y: LOUPE_MARGIN }
-    const left = { x: LOUPE_MARGIN, y: LOUPE_MARGIN }
-    if (!size.width || !pointerPx) return right
-    return pointerPx.x > size.width / 2 ? left : right
-  }, [size.width, pointerPx])
+  //
+  // Which side is a primitive on purpose. Deriving the corner object straight
+  // from the pointer gave it a new identity on every mouse move, so `views`
+  // below rebuilt -- constructing a fresh OrthographicView and handing deck a
+  // new array 60 times per sweep -- and deck tore its viewports down and back
+  // up each time for a loupe that had not actually moved.
+  const loupeOnLeft = Boolean(size.width && pointerPx && pointerPx.x > size.width / 2)
+  const loupeCorner = useMemo(() => ({
+    x: loupeOnLeft ? LOUPE_MARGIN : size.width - LOUPE_SIZE - LOUPE_MARGIN,
+    y: LOUPE_MARGIN,
+  }), [loupeOnLeft, size.width])
 
   // Holding space suspends drawing so the map can be panned without
   // leaving the area tool.
@@ -412,6 +433,7 @@ export default function MapCanvas({
       */}
       {measured && (
       <DeckGL
+        key={glKey}
         ref={deckRef}
         views={views}
         viewState={viewStates}
