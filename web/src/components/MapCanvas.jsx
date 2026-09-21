@@ -14,6 +14,7 @@ import ScaleRulers from './ScaleRulers.jsx'
 /** The magnifier renders the same layers again, this much closer in. */
 const LOUPE_ZOOM = 2.6
 const LOUPE_SIZE = 230
+const LOUPE_MARGIN = 16
 
 function mainView(inspectMode) {
   return new OrthographicView({
@@ -85,6 +86,7 @@ export default function MapCanvas({
 }) {
   const [hover, setHover] = useState(null)
   const [cursor, setCursor] = useState(null)
+  const [pointerPx, setPointerPx] = useState(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
   const wrapRef = useRef(null)
   const deckRef = useRef(null)
@@ -114,6 +116,12 @@ export default function MapCanvas({
   }, [])
 
   const handleHover = useCallback((info) => {
+    if (info.x != null && info.y != null) setPointerPx({ x: info.x, y: info.y })
+    // The loupe is a second, more-zoomed view of wherever `cursor` already is.
+    // Its own hover events report coordinates in that zoomed-in space, not a
+    // new map position -- feeding them back in is what made the screen area
+    // under the loupe unreachable, since it could never see past itself.
+    if (info.viewport?.id === 'loupe') return
     if (info.coordinate) {
       setCursor({ x: info.coordinate[0], y: info.coordinate[1] })
       onCursorCell?.(info.coordinate[0], info.coordinate[1])
@@ -126,6 +134,29 @@ export default function MapCanvas({
   const bounds = [0, 0, WORLD, WORLD]
   const showLoupe = magnifier && cursor && size.width > LOUPE_SIZE * 1.6
 
+  // Fixed to one corner, whatever was drawn there became unreachable: the
+  // loupe itself covered it. Instead it follows the pointer to whichever
+  // corner is farthest away, so every part of the map stays inspectable.
+  const loupeCorner = useMemo(() => {
+    const fallback = { x: size.width - LOUPE_SIZE - LOUPE_MARGIN, y: LOUPE_MARGIN }
+    if (!size.width || !size.height || !pointerPx) return fallback
+    const corners = [
+      { x: LOUPE_MARGIN, y: LOUPE_MARGIN },
+      { x: size.width - LOUPE_SIZE - LOUPE_MARGIN, y: LOUPE_MARGIN },
+      { x: LOUPE_MARGIN, y: size.height - LOUPE_SIZE - LOUPE_MARGIN },
+      { x: size.width - LOUPE_SIZE - LOUPE_MARGIN, y: size.height - LOUPE_SIZE - LOUPE_MARGIN },
+    ]
+    let best = corners[0]
+    let bestDist = -Infinity
+    for (const c of corners) {
+      const dx = c.x + LOUPE_SIZE / 2 - pointerPx.x
+      const dy = c.y + LOUPE_SIZE / 2 - pointerPx.y
+      const dist = dx * dx + dy * dy
+      if (dist > bestDist) { bestDist = dist; best = c }
+    }
+    return best
+  }, [size.width, size.height, pointerPx])
+
   // Holding space suspends drawing so the map can be panned without
   // leaving the area tool.
   const drawing = inspectMode && !spacePan
@@ -137,15 +168,15 @@ export default function MapCanvas({
       base,
       new OrthographicView({
         id: 'loupe',
-        x: Math.round(size.width - LOUPE_SIZE - 16),
-        y: 16,
+        x: Math.round(loupeCorner.x),
+        y: Math.round(loupeCorner.y),
         width: LOUPE_SIZE,
         height: LOUPE_SIZE,
         flipY: false,
         clear: true,
       }),
     ]
-  }, [showLoupe, size.width, base])
+  }, [showLoupe, loupeCorner, base])
 
   const viewStates = useMemo(() => {
     const main = viewState
@@ -424,7 +455,7 @@ export default function MapCanvas({
       {showLoupe && (
         <div
           className="loupe-frame"
-          style={{ width: LOUPE_SIZE, height: LOUPE_SIZE, right: 16, top: 16 }}
+          style={{ width: LOUPE_SIZE, height: LOUPE_SIZE, left: loupeCorner.x, top: loupeCorner.y }}
           aria-hidden="true"
         >
           <span className="loupe-label">{Math.round(2 ** LOUPE_ZOOM)}×</span>
