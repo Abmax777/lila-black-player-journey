@@ -7,7 +7,7 @@ import { COVERAGE_TINT_HEX, COVERAGE_MODES } from '../lib/coverage.js'
  */
 export default function Legend({
   categories, onToggle, showPaths, showHumans, showBots,
-  heatmapLabel, coverage, coverageMode, showTerminals,
+  heatmapLabel, heatmapNote, heatCeiling, coverage, coverageMode, showTerminals,
 }) {
   return (
     <div className="legend">
@@ -43,8 +43,22 @@ export default function Legend({
       {heatmapLabel && (
         <div className="legend-group heat">
           <span className="legend-item static">{heatmapLabel} density</span>
-          <span className="heat-scale" style={{ background: `linear-gradient(90deg, ${HEAT_RAMP_HEX.join(',')})` }} />
-          <span className="legend-item static muted-text">low → high</span>
+          {heatmapNote ? (
+            <span className="legend-item static muted-text">{heatmapNote}</span>
+          ) : (
+            <>
+              <span className="legend-item static muted-text">0</span>
+              <span
+                className="heat-scale"
+                style={{ background: `linear-gradient(90deg, ${HEAT_RAMP_HEX.join(',')})` }}
+              />
+              {/* The scale is absolute, so it can carry a number instead of
+                  "low → high": the same colour is the same rate everywhere. */}
+              <span className="legend-item static muted-text">
+                {heatCeiling}+ per 100 m² · 100 matches
+              </span>
+            </>
+          )}
         </div>
       )}
       {showTerminals && (

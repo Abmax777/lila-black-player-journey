@@ -6,7 +6,9 @@ import {
 import { buildRowMask, summarise } from './lib/selectors.js'
 import { buildCellIndex, cellAt } from './lib/cells.js'
 import { computeCoverage } from './lib/coverage.js'
-import { computeDensity, blurRadius, SMOOTH_METRES } from './lib/density.js'
+import {
+  computeDensity, SMOOTH_METRES, RATE_CEILING, MIN_MATCHES_FOR_DENSITY,
+} from './lib/density.js'
 import { analyseArea } from './lib/area.js'
 import { CATEGORY_ORDER } from './lib/palette.js'
 import MapCanvas from './components/MapCanvas.jsx'
@@ -197,12 +199,15 @@ export default function App() {
 
   const heatmap = useMemo(() => {
     if (!mapData || !dataMask || heatmapMode === 'none') return null
+    // A rate needs a population behind it; below that the tool says so instead.
+    if (!summary || summary.matches < MIN_MATCHES_FOR_DENSITY) return null
     const traffic = heatmapMode === 'traffic'
     const field = computeDensity(
       mapData,
       dataMask,
       traffic ? null : heatmapMode,
-      blurRadius(traffic ? SMOOTH_METRES.traffic : SMOOTH_METRES.event, mapMeta?.scale),
+      traffic ? SMOOTH_METRES.traffic : SMOOTH_METRES.event,
+      mapMeta?.scale,
       mapMeta?.landmask,
       mapMeta?.coverageGrid,
     )
@@ -211,14 +216,14 @@ export default function App() {
           key: heatmapMode,
           field,
           lift: traffic ? 0.8 : 0.58,
-          // Movement covers the map, so every low cell there is a real reading.
-          // Events do not, so anything under the floor is kernel tail and is cut.
-          floor: traffic ? 0 : 0.18,
+          // Absolute: the same colour is the same event rate on every map.
+          ceiling: RATE_CEILING[heatmapMode],
+          matches: summary.matches,
           // Tuned baseline per overlay, times the user's multiplier.
-          alpha: (traffic ? 0.8 : 0.92) * overlayOpacity,
+          alphaScale: (traffic ? 0.8 : 0.92) * overlayOpacity,
         }
       : null
-  }, [mapData, dataMask, heatmapMode, mapMeta, overlayOpacity])
+  }, [mapData, dataMask, heatmapMode, mapMeta, overlayOpacity, summary])
 
   // Coverage describes a population of runs, so it is meaningless for one match.
   const coverage = useMemo(() => {
@@ -490,6 +495,16 @@ export default function App() {
   if (!boot) return <div className="boot" role="status">Loading telemetry…</div>
 
   const heatmapLabel = heatmapMode === 'none' ? null : HEATMAP_LABEL[heatmapMode]
+  // An empty selection already has its own empty state; this note is for the
+  // case where there is data but too little of it to carry a rate.
+  const heatmapNote =
+    heatmapMode !== 'none' && summary && summary.matches > 0
+    && summary.matches < MIN_MATCHES_FOR_DENSITY
+      ? `${summary.matches} match${summary.matches === 1 ? '' : 'es'} is too few to estimate a rate — `
+        + (showMarkers
+          ? 'the markers show each event exactly'
+          : 'turn on event markers to see them individually')
+      : null
 
   const dismissIntro = () => {
     setShowIntro(false)
@@ -547,6 +562,8 @@ export default function App() {
             showHumans={showHumans}
             showBots={showBots}
             heatmapLabel={heatmapLabel}
+            heatmapNote={heatmapNote}
+            heatCeiling={heatmapMode === 'none' ? null : RATE_CEILING[heatmapMode]}
             coverage={coverage}
             coverageMode={coverageMode}
             showTerminals={showTerminals}

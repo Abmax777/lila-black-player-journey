@@ -77,7 +77,10 @@ would need to get there.
 5. **Pick a 1-minute phase window and drag it.** At 1:00 there are 561 matches
    spread across every POI. At 10:00 there are 130, converged on one hotspot.
 6. **Switch the heatmap to Kills.** Combat concentrates in the central corridor,
-   not on the flank routes.
+   not on the flank routes. The scale is absolute — kills per 100 m² per 100
+   matches — so switching to Grand Rift compares like with like: it reads
+   brighter because it genuinely is about 3x deadlier per match, not because it
+   has been rescaled to its own maximum.
 7. **Pick a match, press play.** One run: drop, loot, bot encounters, and — if it
    lasts past eleven minutes — the storm.
 8. **Press `I` and drag a box over a quiet building.** Entry rate against

@@ -98,7 +98,7 @@ export default function MapCanvas({
     [coverage, coverageMode, coverageOpacity],
   )
   const heatImage = useMemo(
-    () => (heatmap ? densityTexture(heatmap.field, heatmap.lift, heatmap.alpha, heatmap.floor) : null),
+    () => (heatmap ? densityTexture(heatmap.field, heatmap) : null),
     [heatmap],
   )
 

@@ -37,12 +37,95 @@ export const DENSITY_GRID = 220
 export const SMOOTH_METRES = { traffic: 45, event: 25 }
 
 /**
+ * Where the ramp saturates, in events per 100 m^2 per 100 matches.
+ *
+ * The surface used to normalise against the selection's own 99.5th percentile,
+ * which made every reading relative: the same brightness meant 6.2 kills per
+ * 100 m^2 on Ambrose Valley and 1.6 on Lockdown, and the picture silently
+ * rescaled whenever a filter changed. Worse, it inverted the finding. Ambrose
+ * has 566 matches to Grand Rift's 59, so raw totals mostly measure how much
+ * play was recorded: by total density Ambrose looks 3.3x the hotter map, while
+ * per match Grand Rift is 3.1x hotter. A level designer asking "is this a
+ * hotspot in a typical match" wants the rate, so the rate is what the ramp
+ * measures, and the legend can finally carry numbers.
+ *
+ * Each ceiling sits above the quiet maps' peaks and below the busiest, so every
+ * map uses most of the ramp and the hottest ground clips and reads as "3+".
+ * Observed peaks per 100 matches, at the 99.5th percentile:
+ *   kill    Ambrose 1.41  Grand Rift 4.43  Lockdown 1.30
+ *   death   Ambrose 0.90  Grand Rift 3.41  Lockdown 1.10
+ *   loot    Ambrose 7.50  Grand Rift 11.04 Lockdown 4.95
+ *   traffic Ambrose 9.37  Grand Rift 29.22 Lockdown 13.80
+ */
+export const RATE_CEILING = { traffic: 15, kill: 3, death: 2, loot: 8 }
+
+/**
+ * A smoothed density needs a population of matches behind it.
+ *
+ * The per-match rate is steady down to about twenty matches (1.41 -> 1.48 per
+ * 100 matches on Ambrose kills) and then runs away: at ten matches it reads
+ * 7.07 and at three, 9.64. The cause is that one event's own kernel peak does
+ * not shrink as matches drop, so dividing by matches inflates it. Below this
+ * many matches the tool draws no surface and says so, the same call `coverage`
+ * already makes for a single match. The event markers remain exact.
+ */
+export const MIN_MATCHES_FOR_DENSITY = 20
+
+/**
  * Convert a smoothing distance to a box-blur radius in grid cells.
  * Three passes of radius r reach 3r cells, so r is sized to the target reach.
  */
 export function blurRadius(metres, scale) {
   const cell = (scale || 1000) / DENSITY_GRID
   return Math.max(1, Math.round(metres / cell / 3))
+}
+
+/** Side of one density cell, in world metres. */
+function cellMetres(scale) {
+  return (scale || 1000) / DENSITY_GRID
+}
+
+/**
+ * How far from a real event the surface is allowed to make a claim, in cells.
+ *
+ * This is the smoothing distance itself: a cell may be painted only when an
+ * event actually lies within the distance the blur is documented to pool over.
+ */
+function supportRadius(metres, scale) {
+  return Math.max(1, Math.round(metres / cellMetres(scale)))
+}
+
+/**
+ * Cells within `radius` of a cell holding at least one real event.
+ *
+ * The floor this replaces tested magnitude but claimed to test provenance --
+ * "below this a cell holds nothing but the far tail of some other cell's
+ * kernel". Those only agree when events are spread evenly. Once one cluster
+ * dominates, every quieter location is measured against it and fails whether
+ * or not real events sit in it, which hid a fifth of the kills on Ambrose
+ * Valley and a quarter of the deaths. Asking where the events are answers the
+ * question the comment was actually asking.
+ */
+function supportMask(occupied, grid, radius) {
+  const support = new Uint8Array(grid * grid)
+  const disc = []
+  for (let dy = -radius; dy <= radius; dy++) {
+    for (let dx = -radius; dx <= radius; dx++) {
+      if (dx * dx + dy * dy <= radius * radius) disc.push([dy, dx])
+    }
+  }
+  for (let r = 0; r < grid; r++) {
+    for (let c = 0; c < grid; c++) {
+      if (!occupied[r * grid + c]) continue
+      for (let k = 0; k < disc.length; k++) {
+        const rr = r + disc[k][0]
+        const cc = c + disc[k][1]
+        if (rr < 0 || rr >= grid || cc < 0 || cc >= grid) continue
+        support[rr * grid + cc] = 1
+      }
+    }
+  }
+  return support
 }
 
 /**
@@ -53,9 +136,13 @@ export function blurRadius(metres, scale) {
  * @param {string|null} category  null bins movement samples; otherwise that event category
  * @param {number} blur      smoothing radius in cells
  */
-export function computeDensity(data, mask, category, blur = 4, landmask = null, landGrid = 0) {
+export function computeDensity(
+  data, mask, category, smoothMetres, scale, landmask = null, landGrid = 0,
+) {
   const grid = DENSITY_GRID
+  const blur = blurRadius(smoothMetres, scale)
   let field = new Float32Array(grid * grid)
+  const occupied = new Uint8Array(grid * grid)
   let count = 0
 
   for (let i = 0; i < data.n; i++) {
@@ -69,9 +156,14 @@ export function computeDensity(data, mask, category, blur = 4, landmask = null, 
     const col = Math.min(grid - 1, Math.max(0, Math.floor((data.x[i] / WORLD) * grid)))
     const row = Math.min(grid - 1, Math.max(0, Math.floor(((WORLD - data.y[i]) / WORLD) * grid)))
     field[row * grid + col] += 1
+    occupied[row * grid + col] = 1
     count++
   }
   if (!count) return null
+
+  // Recorded before the blur, so support describes where events actually are
+  // rather than where the kernel carried them.
+  const support = supportMask(occupied, grid, supportRadius(smoothMetres, scale))
 
   // Three box-blur passes approximate a Gaussian closely enough and stay O(n).
   let scratch = new Float32Array(grid * grid)
@@ -80,7 +172,8 @@ export function computeDensity(data, mask, category, blur = 4, landmask = null, 
     blurAxis(scratch, field, grid, blur, false)
   }
 
-  return { field, grid, count, land: landField(landmask, landGrid, grid) }
+  const cell = cellMetres(scale)
+  return { field, grid, count, support, cellM2: cell * cell, land: landField(landmask, landGrid, grid) }
 }
 
 /**
@@ -127,43 +220,41 @@ function blurAxis(src, dst, grid, radius, horizontal) {
 /**
  * Colourise a density field through the sequential ramp.
  *
- * Normalised against a high percentile rather than the maximum, so a single
- * doorway that everyone walks through cannot flatten the rest of the map.
+ * The scale is absolute (see RATE_CEILING), so the same colour means the same
+ * event rate on every map and under every filter, and readings above the
+ * ceiling clip rather than rescaling everything else.
  */
 /**
- * @param {object} density  field + grid from computeDensity
- * @param {number} lift     exponent on normalised density; lower lifts the
+ * @param {object} density  field, support and cell area from computeDensity
+ * @param {number} lift     exponent on the normalised rate; lower lifts the
  *                          long tail harder. Movement samples cover most of
  *                          the map, so they need less lift than sparse
  *                          combat events or the surface swallows the art.
  * @param {number} alphaScale  overall opacity of the surface
- * @param {number} floor    normalised density below which a cell is kernel
- *                          tail rather than signal, and is not drawn at all
+ * @param {number} ceiling  rate at which the ramp saturates, per RATE_CEILING
+ * @param {number} matches  matches in the current selection, the rate's divisor
  */
-export function densityTexture({ field, grid, land }, lift = 0.5, alphaScale = 1, floor = 0) {
-  const nonZero = []
-  for (let i = 0; i < field.length; i++) if (field[i] > 1e-6) nonZero.push(field[i])
-  if (!nonZero.length) return null
-  nonZero.sort((a, b) => a - b)
-  const ceiling = Math.max(1e-6, nonZero[Math.floor(nonZero.length * 0.995)])
-
+export function densityTexture(density, { lift = 0.5, alphaScale = 1, ceiling = 1, matches = 1 }) {
+  const { field, grid, land, support, cellM2 } = density
   const canvas = document.createElement('canvas')
   canvas.width = grid
   canvas.height = grid
   const ctx = canvas.getContext('2d')
   const img = ctx.createImageData(grid, grid)
 
+  // events per cell -> events per 100 m^2 per 100 matches
+  const toRate = (100 / cellM2) * (100 / Math.max(1, matches))
+
   for (let i = 0; i < grid * grid; i++) {
-    // Below the floor a cell holds nothing but the far tail of some other
-    // cell's kernel. Drawing it claims events happened where none did, so it
-    // is cut rather than faded. The remainder is restretched to 0..1 so the
-    // cut costs contrast at the top of the scale, not the whole surface.
-    const raw = Math.min(1, field[i] / ceiling)
-    if (floor > 0 && raw <= floor) {
+    // No real event within the smoothing distance: whatever is here is the
+    // kernel's tail, and painting it would claim events happened where none
+    // did. Inside the support the ramp starts at zero alpha, so a genuinely
+    // faint reading fades out on its own rather than being cut at a threshold.
+    if (support && !support[i]) {
       img.data[i * 4 + 3] = 0
       continue
     }
-    const t = (floor > 0 ? (raw - floor) / (1 - floor) : raw) ** lift
+    const t = Math.min(1, (field[i] * toRate) / ceiling) ** lift
     const [r, g, b, a] = sampleRamp(t)
     const o = i * 4
     img.data[o] = r
