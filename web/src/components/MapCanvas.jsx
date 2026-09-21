@@ -135,27 +135,18 @@ export default function MapCanvas({
   const showLoupe = magnifier && cursor && size.width > LOUPE_SIZE * 1.6
 
   // Fixed to one corner, whatever was drawn there became unreachable: the
-  // loupe itself covered it. Instead it follows the pointer to whichever
-  // corner is farthest away, so every part of the map stays inspectable.
+  // loupe itself covered it. So it moves out of the pointer's way -- but only
+  // between the two top corners, because both bottom corners are already spoken
+  // for by DOM overlays that paint above the canvas: the zoom toolbox sits
+  // bottom-left permanently, and the hover readout sits bottom-right for as
+  // long as the cursor is over the map, which is exactly whenever the loupe is
+  // up. Sent to either of those, the magnified view is drawn over.
   const loupeCorner = useMemo(() => {
-    const fallback = { x: size.width - LOUPE_SIZE - LOUPE_MARGIN, y: LOUPE_MARGIN }
-    if (!size.width || !size.height || !pointerPx) return fallback
-    const corners = [
-      { x: LOUPE_MARGIN, y: LOUPE_MARGIN },
-      { x: size.width - LOUPE_SIZE - LOUPE_MARGIN, y: LOUPE_MARGIN },
-      { x: LOUPE_MARGIN, y: size.height - LOUPE_SIZE - LOUPE_MARGIN },
-      { x: size.width - LOUPE_SIZE - LOUPE_MARGIN, y: size.height - LOUPE_SIZE - LOUPE_MARGIN },
-    ]
-    let best = corners[0]
-    let bestDist = -Infinity
-    for (const c of corners) {
-      const dx = c.x + LOUPE_SIZE / 2 - pointerPx.x
-      const dy = c.y + LOUPE_SIZE / 2 - pointerPx.y
-      const dist = dx * dx + dy * dy
-      if (dist > bestDist) { bestDist = dist; best = c }
-    }
-    return best
-  }, [size.width, size.height, pointerPx])
+    const right = { x: size.width - LOUPE_SIZE - LOUPE_MARGIN, y: LOUPE_MARGIN }
+    const left = { x: LOUPE_MARGIN, y: LOUPE_MARGIN }
+    if (!size.width || !pointerPx) return right
+    return pointerPx.x > size.width / 2 ? left : right
+  }, [size.width, pointerPx])
 
   // Holding space suspends drawing so the map can be panned without
   // leaving the area tool.
