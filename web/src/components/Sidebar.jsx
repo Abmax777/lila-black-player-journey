@@ -39,6 +39,7 @@ function killsOf(m) {
 }
 
 export default function Sidebar({
+  importSlot,
   manifest, mapId, onMapChange,
   days, activeDays, onToggleDay, onAllDays,
   matches, matchId, onMatchChange,
@@ -61,7 +62,8 @@ export default function Sidebar({
       <header className="brand">
         <h1>Player Journey Explorer</h1>
         <p>
-          Lila Black · {manifest.totals.matches.toLocaleString()} matches ·{' '}
+          {manifest.imported ? 'Imported capture' : 'Lila Black'} ·{' '}
+          {manifest.totals.matches.toLocaleString()} matches ·{' '}
           {manifest.totals.events.toLocaleString()} events
         </p>
         <div className="brand-links">
@@ -69,6 +71,8 @@ export default function Sidebar({
           <button className="link" onClick={onStartTour}>Show me around</button>
         </div>
       </header>
+
+      {importSlot}
 
       <section>
         <h2>Map</h2>
@@ -80,7 +84,7 @@ export default function Sidebar({
               onClick={() => onMapChange(m.id)}
               aria-pressed={m.id === mapId}
             >
-              <img src={`${import.meta.env.BASE_URL}data/${m.image}`} alt="" loading="lazy" />
+              <img src={m.imageUrl ?? `${import.meta.env.BASE_URL}data/${m.image}`} alt="" loading="lazy" />
               <span>{m.label}</span>
               <em>{m.matches} matches</em>
             </button>

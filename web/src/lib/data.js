@@ -29,7 +29,17 @@ export async function loadManifest() {
  * different layers and filtered on different axes.
  */
 export async function loadMapEvents(mapId) {
-  const raw = await fetch(`${BASE}/events-${mapId}.json`).then((r) => r.json())
+  return decodeMapPayload(await fetch(`${BASE}/events-${mapId}.json`).then((r) => r.json()))
+}
+
+/**
+ * Columnar payload -> typed arrays.
+ *
+ * Split out from the fetch so an imported dataset built in the browser goes
+ * through exactly this code, rather than a second decoder that could drift
+ * from it.
+ */
+export function decodeMapPayload(raw) {
   const { cols, quant, users, userIsHuman, matches, events } = raw
   const n = raw.n
   const k = WORLD / quant
@@ -55,7 +65,9 @@ export async function loadMapEvents(mapId) {
   const isHuman = Uint8Array.from(userIx, (u) => (userIsHuman[u] ? 1 : 0))
 
   return {
-    mapId,
+    // Carried in the payload itself, so a decoded set knows its own map
+    // whether it came from the deployed files or from an import.
+    mapId: raw.map,
     n,
     x,
     y,

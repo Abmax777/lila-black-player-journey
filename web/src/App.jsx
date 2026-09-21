@@ -16,6 +16,7 @@ import Sidebar from './components/Sidebar.jsx'
 import StatsBar from './components/StatsBar.jsx'
 import Timeline from './components/Timeline.jsx'
 import Legend from './components/Legend.jsx'
+import ImportPanel from './components/ImportPanel.jsx'
 import MapSummary from './components/MapSummary.jsx'
 import AreaInspector from './components/AreaInspector.jsx'
 import Shortcuts from './components/Shortcuts.jsx'
@@ -83,10 +84,34 @@ export default function App() {
   // Names of controls the app just changed on its own, so the UI can say so.
   const [autoChanged, setAutoChanged] = useState([])
   const [tourOpen, setTourOpen] = useState(false)
+  // A capture the user loaded from disk. When set it stands in for the shipped
+  // payloads wholesale, so nothing downstream can be looking at a mix of both.
+  const [imported, setImported] = useState(null)
+
+  /**
+   * Adopt a capture loaded from disk. The selected map has to move with it:
+   * the previous selection may not exist in the new data, and leaving it
+   * pointing at nothing renders an empty stage with no explanation.
+   */
+  const applyImport = useCallback((result) => {
+    setImported(result)
+    setMapData(null)
+    setRect(null)
+    // null, not '': buildRowMask tests `matchId == null`, and an empty string
+    // reads as a selected match that exists on no map, hiding every row.
+    setMatchId(null)
+    setActiveDays(new Set())
+    setMapId((current) => (result.manifest.maps[current] ? current : Object.keys(result.manifest.maps)[0]))
+  }, [])
 
   useEffect(() => {
+    if (imported) {
+      setError(null)
+      setBoot({ manifest: imported.manifest, matches: imported.matches })
+      return
+    }
     loadManifest().then(setBoot).catch((e) => setError(e.message || String(e)))
-  }, [])
+  }, [imported])
 
   const stageRef = useRef(null)
   const fitRef = useRef(() => {})
@@ -111,11 +136,16 @@ export default function App() {
     if (!boot) return undefined
     let stale = false
     setLoading(true)
+    if (imported) {
+      setMapData(imported.events.get(mapId) ?? null)
+      setLoading(false)
+      return () => { stale = true }
+    }
     loadMapEvents(mapId)
       .then((d) => { if (!stale) { setMapData(d); setLoading(false) } })
       .catch((e) => { if (!stale) { setError(e.message || String(e)); setLoading(false) } })
     return () => { stale = true }
-  }, [boot, mapId])
+  }, [boot, mapId, imported])
 
   const mapMeta = boot?.manifest.maps[mapId] ?? null
   const grid = mapMeta?.coverageGrid ?? 96
@@ -517,6 +547,13 @@ export default function App() {
   return (
     <div className={`app${inspectMode ? ' inspecting' : ''}`}>
       <Sidebar
+        importSlot={(
+          <ImportPanel
+            imported={Boolean(imported)}
+            onImported={applyImport}
+            onReset={() => setImported(null)}
+          />
+        )}
         manifest={boot.manifest}
         mapId={mapId}
         onMapChange={changeMap}

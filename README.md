@@ -62,6 +62,20 @@ would need to get there.
 - Event identity is carried by glyph shape as well as colour, so it survives
   colour-vision deficiency (see ARCHITECTURE.md for the validator results)
 
+## Loading your own capture
+
+Click **Load a capture…** in the sidebar and pick a `player_data` folder. It is
+read in the tab — nothing is uploaded anywhere.
+
+The folder needs the same shape as the sample: the parquet files, a
+`minimaps/` folder with `<MapId>_Minimap.png`, and a `README.md` carrying the
+scale/origin table. Maps the tool has never seen work, as long as those two
+things are present; a map with telemetry but no art or no calibration is named
+and skipped rather than silently dropped.
+
+There is still an offline path — `python3 pipeline/build.py --data <dir>` —
+which is what produced the payloads this deploy ships.
+
 ## A five-minute walkthrough
 
 1. **It opens on Ambrose Valley with traffic density.** The hot buildings and the

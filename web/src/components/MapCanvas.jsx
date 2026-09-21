@@ -274,7 +274,9 @@ export default function MapCanvas({
   const layers = [
     new BitmapLayer({
       id: 'minimap',
-      image: `${import.meta.env.BASE_URL}data/${mapMeta.image}`,
+      // An imported capture hands over an object URL for art it decoded in the
+      // page; the shipped maps name a file under the deployed data directory.
+      image: mapMeta.imageUrl ?? `${import.meta.env.BASE_URL}data/${mapMeta.image}`,
       bounds,
       coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
     }),
