@@ -648,6 +648,3 @@ button.primary:hover { background: #4b93e8; }
 .import-report p { margin: 0 0 4px; }
 .import-report ul { margin: 0; padding-left: 15px; }
 .import-report strong { color: var(--ink-1); font-weight: 600; }
-
-.compare .chips { flex-wrap: wrap; }
-.compare .hint { margin-top: 6px; }
