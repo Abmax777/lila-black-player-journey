@@ -5,47 +5,7 @@ matches, 245 human players) and are reproducible in the deployed tool.
 
 ---
 
-## 1. The maps are built for a multiplayer game that isn't being played
-
-**What caught my eye.** I opened the kill heatmap expecting contested zones and
-found that human-versus-human combat effectively does not exist.
-
-**The evidence.**
-
-| | |
-|---|---|
-| Matches with exactly one human | **779 of 796 (97.9%)** |
-| Matches with two or more humans | 1 |
-| PvP kills in five days | **3** |
-| Bot kills in five days | 2,415 |
-| Bot-kill to PvP-kill ratio | **805 : 1** |
-| Matches with no kill of any kind | 191 (24%) |
-| Loot events per kill | 5.3 : 1 |
-
-Select any match in the tool and the roster reads one human and zero to fifteen
-bots. The dataset README describes "a match with 10 humans and 40 bots"; the
-production data contains no such match.
-
-**Is it actionable, and what moves.** Yes, and it is the most consequential
-finding here. Either matchmaking is failing to fill lobbies, or the game is a
-single-player PvE experience that is being designed as a PvP one. That is a
-question for the studio, not for the data — but until it is answered, level
-design work aimed at player-versus-player encounters is being spent on a
-situation that arises in 1 match in 796. Metrics affected: lobby fill rate,
-time-to-match, PvP encounter rate per session, session length.
-
-**Why a level designer should care.** Most of the craft in an extraction-shooter
-map is PvP craft — sightlines that create fair duels, cover spacing for
-peek-and-trade, flank routes, third-party angles on a contested POI, loot value
-tuned so good drops are worth fighting over. None of that is currently being
-exercised. What *is* being exercised is PvE pacing: bot encounter spacing,
-readability of approach, and the rhythm of a solo looting run. Those are
-different skills applied to different parts of the map, and right now the second
-one is carrying the entire player experience.
-
----
-
-## 2. Every run starts in one of about twenty places, and the rest of the rim is dead
+## 1. Every run starts in one of about twenty places, and the rest of the rim is dead
 
 **What caught my eye.** Turning on journey start and end points, the starts did
 not scatter — they landed in a handful of tight clusters around the map edge,
@@ -119,7 +79,7 @@ before the player does anything: one of twenty-odd entry points, then inward.
 Any design intent that depends on players approaching a POI from an
 unpredictable direction is not being tested.
 
-## 3. The storm cannot kill you before minute eleven, and most matches end at six
+## 2. The storm cannot kill you before minute eleven, and most runs are over at six
 
 **What caught my eye.** 39 storm deaths in five days looked implausibly low for
 a mechanic the brief calls out by name. Scrubbing a few matches on the timeline
@@ -134,20 +94,27 @@ showed why: they all die at roughly the same clock time.
 | Storm share of all deaths | 5.3% |
 | **Earliest storm death in the dataset** | **655 s (10:55)** |
 | Median storm death | 739 s (12:19) |
-| **Median match duration** | **382 s (6:22)** |
-| Matches ending before the earliest storm death | **656 of 796 (82%)** |
-| Matches ending before the median storm death | 732 (92%) |
+| **Median run length** | **382 s (6:22)** |
+| Runs ending before the earliest storm death | **656 of 796 (82%)** |
+| Runs ending before the median storm death | 732 (92%) |
 
-The storm has a hard floor at about eleven minutes. Four matches in five are
-over before it can fire at all. Matches that do contain a storm death run 739 s
-at the median against 362 s for those that don't — roughly double.
+The storm has a hard floor at about eleven minutes. Four runs in five are over
+before it can fire at all. Runs that do contain a storm death last 739 s at the
+median against 362 s for those that don't — roughly double.
+
+A note on what is being measured. The capture holds one participant's telemetry
+for 744 of 796 matches, so these spans are how long a *run* lasted, not how long
+the match ran — matches where more than one participant was captured span 8.6
+min at the median against 6.2 min for the rest. The finding is unaffected, since
+a storm that fires at 11 minutes cannot reach a player who left at 6, but the
+figures describe runs and are written that way.
 
 **Is it actionable, and what moves.** Yes, and it is the cheapest of the three
 to act on: it is a timing value, not a geometry change. Pulling the storm
-schedule forward so the first lethal ring closes inside the median match
-duration would make it a live mechanic for the majority of sessions rather than
-a long-tail one. Metrics affected: storm death share of total deaths, median
-match duration, extraction success rate, and the distribution of match end
+schedule forward so the first lethal ring closes inside the median run
+length would make it a live mechanic for the majority of sessions rather than
+a long-tail one. Metrics affected: storm death share of total deaths, median run
+length, extraction success rate, and the distribution of match end
 reasons.
 
 **Why a level designer should care.** The storm is the map's tempo instrument.
@@ -155,9 +122,57 @@ It is what converts an open space into a sequence of decisions — when to commi
 to a POI, which route out, where the pinch will be. If it never closes, the map
 is played as an untimed sandbox, and every piece of design that assumes storm
 pressure (escape routes, choke timing, extraction point placement relative to
-the shrink) is untested in production. It also explains finding 2: with no
+the shrink) is untested in production. It also explains finding 1: with no
 inward pressure, nothing ever pushes players off the routes they already prefer,
 so the perimeter stays dead.
+
+---
+
+## 3. The map that plays tightest is the one nobody is on
+
+**What caught my eye.** Grand Rift looked like the throwaway map — 59 matches
+against Ambrose Valley's 566, 7.4% of everything played. Then I put the kill
+overlay on an absolute scale and switched between maps, and Grand Rift was
+visibly the hottest of the three. The old relative scale had been hiding it by
+normalising every map to its own maximum.
+
+**The evidence.**
+
+| | Ambrose Valley | Grand Rift | Lockdown |
+|---|---|---|---|
+| Matches | 566 | **59** | 171 |
+| Playable ground | 392,800 m² | **139,400 m²** | 486,700 m² |
+| Kills per match | 3.18 | 3.27 | 2.49 |
+| **Kills per match per 100 m²** | 0.00081 | **0.00235** | 0.00051 |
+| Loot per match | 17.6 | 14.9 | 12.0 |
+| Ground humans never enter | 30.8% | 61.0% | 58.8% |
+
+Fighting per match is near-flat across all three maps — roughly three kills a
+match wherever you play. What differs is the ground it happens on. Grand Rift is
+36% of Ambrose Valley's playable area, so the same three kills land in a third
+of the space: **2.9× the encounter density of Ambrose Valley and 4.6×
+Lockdown's**. It is not a more violent map, it is a smaller one, and that is the
+whole difference.
+
+It is also the map falling out of rotation fastest, at 24 → 13 → 9 → 5 matches
+per day across the window.
+
+**Is it actionable, and what moves.** Yes, and the lever is area rather than
+content. The studio already owns a map that produces encounters at three times
+the rate of its flagship, and the mechanism is not a clever layout — it is
+simply less ground per player. Before reworking Grand Rift, it is worth asking
+the opposite question: whether Ambrose Valley and Lockdown are too large for the
+number of players actually in them, and whether a shrunk playable area would buy
+the encounter density that a storm schedule change (finding 2) is also trying to
+buy. Metrics affected: encounters per session, time-to-first-contact, share of
+match spent without contact, map selection rate.
+
+**Why a level designer should care.** Density of incident is the thing a player
+actually feels, and it is a function of area per player rather than of what is
+placed in the area. Grand Rift is the natural experiment: same mode, same bots,
+same loot rhythm, a third of the ground, three times the contact. That makes it
+the most useful map in the set for calibration and the least useful one to
+delete — which is the decision its play rate would otherwise invite.
 
 ---
 
@@ -167,10 +182,6 @@ so the perimeter stays dead.
 across Feb 10–13 (Feb 14 is a partial day), and only 40 of 245 players appear on
 more than one day — a 16% return rate. Matches per day fall 287 → 197 → 162 →
 112 over the same window.
-
-**Grand Rift is close to unused.** 59 matches against Ambrose Valley's 566, and
-falling faster (24 → 13 → 9 → 5 per day). Combined with 84% of its ground
-unvisited, the map is a candidate for rework or removal from rotation.
 
 **There is playable ground the minimap doesn't draw.** 39 events sit outside
 Grand Rift's drawn landmass, clustered just off the southern shoreline below
