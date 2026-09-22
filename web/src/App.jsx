@@ -459,9 +459,22 @@ export default function App() {
     }))
   }, [])
 
+  // deck.gl's OrthographicController (9.2+) reports zoom per axis as well:
+  // zoomX and zoomY ride along on every view state it emits, and whenever
+  // they are present the viewport ignores `zoom` altogether. Storing them made
+  // the first scroll or drag quietly take ownership of the camera -- from then
+  // on the zoom buttons, the keyboard and the magnifier all changed `zoom`,
+  // the rulers followed it, and the map did not. The view here is never
+  // stretched on one axis, so one zoom is the whole truth: keep it, drop the
+  // per-axis copies.
   const handleViewState = useCallback((vs, interaction) => {
+    const { zoomX, zoomY, zoomAxis, minZoomX, maxZoomX, minZoomY, maxZoomY, ...rest } = vs
+    const zoom = Number.isFinite(zoomX) ? zoomX : Array.isArray(vs.zoom) ? vs.zoom[0] : vs.zoom
     setViewState((prev) => ({
-      ...vs,
+      ...rest,
+      zoom,
+      minZoom: prev.minZoom,
+      maxZoom: prev.maxZoom,
       userMoved: prev.userMoved || Boolean(interaction?.isDragging || interaction?.isZooming),
     }))
   }, [])
