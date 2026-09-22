@@ -4,6 +4,9 @@ A browser tool for exploring how players actually move through Lila Black's
 maps: where they go, where they fight, where they loot, where the storm catches
 them, and which ground they never touch at all.
 
+<img width="1470" height="837" alt="image" src="https://github.com/user-attachments/assets/d92e2758-8512-4e25-87fd-57dc67d607cb" />
+
+
 **Live:** https://lila-black-player-journey-two.vercel.app/
 
 Built for the Lila Games Product Engineer written test. See
