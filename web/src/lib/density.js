@@ -50,14 +50,14 @@ export const SMOOTH_METRES = { traffic: 45, event: 25 }
  * measures, and the legend can finally carry numbers.
  *
  * Each ceiling sits above the quiet maps' peaks and below the busiest, so every
- * map uses most of the ramp and the hottest ground clips and reads as "3+".
+ * map uses most of the ramp and the hottest ground clips and reads as "2+".
  * Observed peaks per 100 matches, at the 99.5th percentile:
  *   kill    Ambrose 1.41  Grand Rift 4.43  Lockdown 1.30
  *   death   Ambrose 0.90  Grand Rift 3.41  Lockdown 1.10
  *   loot    Ambrose 7.50  Grand Rift 11.04 Lockdown 4.95
  *   traffic Ambrose 9.37  Grand Rift 29.22 Lockdown 13.80
  */
-export const RATE_CEILING = { traffic: 15, kill: 3, death: 2, loot: 8 }
+export const RATE_CEILING = { traffic: 15, kill: 2, death: 2, loot: 8 }
 
 /**
  * A smoothed density needs a population of matches behind it.

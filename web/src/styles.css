@@ -222,6 +222,11 @@ body { background: var(--page); color: var(--ink); overflow: hidden; }
 .tool:hover:not(:disabled) { background: #303030; color: var(--ink); }
 .tool:disabled { opacity: 0.35; cursor: not-allowed; }
 .tool.on { background: var(--accent); color: #fff; }
+/* A hover must not out-rank the pressed state. `.tool:hover:not(:disabled)`
+   scores (0,3,0) against `.tool.on`'s (0,2,0), so an active tool stayed grey
+   until the pointer left it -- the button appeared not to respond to its own
+   click. Hovering an active tool now brightens the accent instead. */
+.tool.on:hover:not(:disabled) { background: var(--accent); filter: brightness(1.15); }
 .tool-sep { height: 1px; background: var(--border); margin: 2px 4px; }
 
 /* Name on demand, so the label is available without living on the button. */
