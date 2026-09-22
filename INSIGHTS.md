@@ -128,51 +128,53 @@ so the perimeter stays dead.
 
 ---
 
-## 3. The map that plays tightest is the one nobody is on
+## 3. The richest ground is also the safest
 
-**What caught my eye.** Grand Rift looked like the throwaway map — 59 matches
-against Ambrose Valley's 566, 7.4% of everything played. Then I put the kill
-overlay on an absolute scale and switched between maps, and Grand Rift was
-visibly the hottest of the three. The old relative scale had been hiding it by
-normalising every map to its own maximum.
+**What caught my eye.** Flipping between the loot overlay and the kill overlay,
+the two pictures don't line up. In a game built around deciding whether a bag is
+worth the risk of carrying it, I expected them to.
 
-**The evidence.**
+**The evidence.** Splitting each map's visited ground into quartiles by loot
+picked up per run passing through, then asking what the richest quarter carries:
 
-| | Ambrose Valley | Grand Rift | Lockdown |
+| | Ambrose Valley | Lockdown | Grand Rift |
 |---|---|---|---|
-| Matches | 566 | **59** | 171 |
-| Playable ground | 392,800 m² | **139,400 m²** | 486,700 m² |
-| Kills per match | 3.18 | 3.27 | 2.49 |
-| **Kills per match per 100 m²** | 0.00081 | **0.00235** | 0.00051 |
-| Loot per match | 17.6 | 14.9 | 12.0 |
-| Ground humans never enter | 30.8% | 61.0% | 58.8% |
+| Share of all loot | **90%** | **83%** | **73%** |
+| Share of all combat | 53% | 34% | **17%** |
+| Danger vs the poorest quarter | 4.0× | 1.9× | **1.4×** |
 
-Fighting per match is near-flat across all three maps — roughly three kills a
-match wherever you play. What differs is the ground it happens on. Grand Rift is
-36% of Ambrose Valley's playable area, so the same three kills land in a third
-of the space: **2.9× the encounter density of Ambrose Valley and 4.6×
-Lockdown's**. It is not a more violent map, it is a smaller one, and that is the
-whole difference.
+If risk tracked reward those first two rows would be close together. They are
+not, and the gap widens on exactly the maps that are played least. On Grand Rift
+the richest quarter of the ground yields three quarters of everything picked up
+while carrying one sixth of the fighting — it is, in effect, a free supermarket.
 
-It is also the map falling out of rotation fastest, at 24 → 13 → 9 → 5 matches
-per day across the window.
+Across the bottom half of every map, loot per visit is exactly zero. That ground
+is crossed, not looted: players walk it to get somewhere, and nothing happens to
+them on the way.
 
-**Is it actionable, and what moves.** Yes, and the lever is area rather than
-content. The studio already owns a map that produces encounters at three times
-the rate of its flagship, and the mechanism is not a clever layout — it is
-simply less ground per player. Before reworking Grand Rift, it is worth asking
-the opposite question: whether Ambrose Valley and Lockdown are too large for the
-number of players actually in them, and whether a shrunk playable area would buy
-the encounter density that a storm schedule change (finding 2) is also trying to
-buy. Metrics affected: encounters per session, time-to-first-contact, share of
-match spent without contact, map selection rate.
+Two honest limits on this. "Richest" means number of pickups, because the data
+carries no rarity or value. And almost all combat is against bots, so "danger"
+here means bot pressure rather than other players.
 
-**Why a level designer should care.** Density of incident is the thing a player
-actually feels, and it is a function of area per player rather than of what is
-placed in the area. Grand Rift is the natural experiment: same mode, same bots,
-same loot rhythm, a third of the ground, three times the contact. That makes it
-the most useful map in the set for calibration and the least useful one to
-delete — which is the decision its play rate would otherwise invite.
+**Is it actionable, and what moves.** Yes, and the lever is encounter placement
+rather than layout — which makes it cheap. Bot patrols and spawns are evidently
+not positioned relative to loot value; they are spread across ground that has
+nothing on it. Weighting bot presence toward the high-yield quarter, or thinning
+the loot that sits in undefended cells, would restore the risk/reward decision
+without moving a single wall. The richest quarter is already known per map and
+visible in the tool by switching between the loot and kill overlays. Metrics
+affected: loot picked up per encounter, share of runs that end with no contact
+at all, time-to-first-contact, and extraction rate as a function of loot
+carried.
+
+**Why a level designer should care.** The decision an extraction shooter is
+built on is "is this worth it" — and that decision only exists where reward and
+danger sit in the same place. Here they don't, so the optimal play is simply to
+walk to the rich quarter, fill a bag unopposed, and leave. Every other system in
+the map — cover spacing, sightlines into a POI, escape routes — is tuned for a
+tension that the current encounter placement never creates. It also compounds
+finding 2: with no storm pressure closing in and no danger attached to reward,
+there is nothing in the match asking a player to hurry or to choose.
 
 ---
 
