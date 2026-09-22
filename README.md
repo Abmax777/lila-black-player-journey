@@ -83,7 +83,7 @@ which is what produced the payloads this deploy ships.
 
 1. **It opens on Ambrose Valley with traffic density.** The hot buildings and the
    cold edges are visible before you touch anything.
-2. **Tick "Highlight unused ground."** Coverage shades the map by how many runs
+2. **Pick "What they never touch."** Coverage shades the map by how many runs
    came through — darkest is untouched. 26.7% of playable Ambrose Valley has
    never been entered across 566 matches, and it's almost all perimeter.
 3. **Untick Bots.** Unused ground rises to 30.8% — bots reach ground players
@@ -91,18 +91,21 @@ which is what produced the payloads this deploy ships.
 4. **Tick "Journey start & end."** Starts land in about twenty tight clusters on
    the rim; ends spread across the interior. Every run enters at a fixed point
    and heads inward.
-5. **Pick a 1-minute phase window and drag it.** At 1:00 there are 561 matches
+5. **Pick a 1-minute phase window and drag it.** At 1:00 there are 561 runs
    spread across every POI. At 10:00 there are 130, converged on one hotspot.
 6. **Switch the heatmap to Kills.** Combat concentrates in the central corridor,
    not on the flank routes. The scale is absolute — kills per 100 m² per 100
-   matches — so switching to Grand Rift compares like with like: it reads
-   brighter because it genuinely is about 3x deadlier per match, not because it
-   has been rescaled to its own maximum.
+   matches — so switching maps compares like with like. Grand Rift reads
+   brighter because the same fighting is packed into about a third of
+   Ambrose Valley's ground, not because it has been rescaled to its own
+   maximum; kills per match are close on all three maps.
 7. **Pick a match, press play.** One run: drop, loot, bot encounters, and — if it
    lasts past eleven minutes — the storm.
 8. **Press `I` and drag a box over a quiet building.** Entry rate against
    pass-within-50m tells you whether players skipped it or never got near it.
 9. **Hit "Copy link".** The URL carries every filter, so that view is shareable.
+
+![Area Inspector on a box around Ambrose Valley (99, −79): partly used, 60% of passing runs enter, 169 kills against 34 deaths](docs/img/area-inspector.webp)
 
 ## Running it locally
 

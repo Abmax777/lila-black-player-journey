@@ -47,7 +47,7 @@ def load_raw(data_dir: str) -> pd.DataFrame:
     frames, unreadable = [], []
     for day in sorted(os.listdir(data_dir)):
         day_dir = os.path.join(data_dir, day)
-        if not os.path.isdir(day_dir) or not day.startswith("February_"):
+        if not os.path.isdir(day_dir) or day.startswith((".", "_")) or day == "minimaps":
             continue
         for name in sorted(os.listdir(day_dir)):
             path = os.path.join(day_dir, name)

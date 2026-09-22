@@ -1,7 +1,9 @@
 # Three things the data says about Lila Black
 
 All figures come from the five-day dataset (Feb 10–14 2026; 89,104 events, 796
-matches, 245 human players) and are reproducible in the deployed tool.
+matches, 245 human players). The maps and counts can be checked in the deployed
+tool; the tables (hazard by minute, per-cell lethality, trade ratios) were
+computed offline from the same payloads the tool ships.
 
 ---
 
@@ -10,6 +12,8 @@ matches, 245 human players) and are reproducible in the deployed tool.
 **What caught my eye.** Turning on journey start and end points, the starts did
 not scatter. They stacked into a handful of tight clusters on the map edge,
 while the ends spread right across the interior.
+
+![Ambrose Valley, humans only: journey starts (blue) sit in a few clusters on the rim, ends (orange) fill the interior](docs/img/insight1-starts.webp)
 
 **The evidence.** Taking the first and last movement sample of every human
 journey, over a ~10 m grid:
@@ -37,6 +41,8 @@ And the dead ground is not remote ground:
 Counting bot traffic as well, unused ground falls to 26.7%, 51.8% and 50.2% —
 bots reach ground humans never touch. Bot paths are nav-mesh output rather than
 choice, so the humans-only figure is the one that describes design intent.
+
+![Ambrose Valley, humans only, coverage overlay: the never-entered ground forms a band around the perimeter](docs/img/insight1-dead-rim.webp)
 
 **What it means.** The map has a spoke structure that its geometry does not
 show. Every run begins at one of twenty fixed points, and everything of value is
@@ -111,6 +117,8 @@ the player is still alive at its start:
 | **2–11** | **7–10%, flat** |
 | 11–12 | 13% |
 | 12–14 | **24%** |
+
+![Ambrose Valley, phase window 11:00–12:00, deaths: 90 of 566 matches still have a run going, and the storm deaths (blue) arrive together](docs/img/insight2-minute-11.webp)
 
 A note on what is being measured. The capture holds one participant's telemetry
 for 744 of 796 matches, so run length here is how long a *run* lasted, not how
@@ -191,6 +199,12 @@ hotspots that ratio splits two ways:
 | Lockdown (104, −21) | 43 | 12 | 34 | 2.8 |
 | Ambrose (−126, 146) | 27 | 3 | 2 | **0.7** |
 | Lockdown (−229, 188) | 17 | 3 | 0 | **0.0** |
+
+![Area Inspector on Ambrose Valley (24, −4): a hotspot where players keep the trade](docs/img/insight3-hotspot.webp)
+
+The Area Inspector snaps a box to the tool's ~9 m coverage cells, so the same
+spot reads 97 kills against 19 deaths there rather than the table's 64 and 14 —
+a slightly larger area, the same roughly five-to-one trade.
 
 **What it means.** If deaths simply followed traffic, lethality per visit would
 be roughly even across the map. It is not — a few cells are five to nine times
