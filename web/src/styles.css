@@ -1,15 +1,21 @@
 :root {
   color-scheme: dark;
-  --page: #0d0d0d;
-  --panel: #1a1a19;
-  --panel-raised: #232321;
+  --page: #121110;
+  --panel: #1b1a18;
+  --panel-raised: #242220;
   --border: rgba(255, 255, 255, 0.10);
-  --ink: #ffffff;
-  --ink-2: #d2d1c8;
+  --ink: #f6f4f0;
+  --ink-2: #d5d1c8;
   /* Raised from #898781: the old muted tone sat near 3:1 on the panel, which
      is below AA for text at these sizes. */
-  --ink-muted: #a4a29a;
-  --accent: #3987e5;
+  --ink-muted: #a6a29a;
+  /* Lilac, not the old #3987e5 -- that was byte-identical to the Storm death
+     marker, so the UI's selection colour and a data category were the same
+     blue. No event category uses violet, so nothing competes with it. */
+  --accent: #b9a3dd;
+  /* A pastel accent needs a dark foreground: white on this is 2.25:1, the
+     panel colour is 7.74:1. */
+  --on-accent: #1b1a18;
   --sidebar-w: 300px;
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
@@ -76,7 +82,7 @@ body { background: var(--page); color: var(--ink); overflow: hidden; }
 }
 .chip.tiny { padding: 2px 7px; font-size: 10.5px; }
 .chip:hover:not(:disabled) { border-color: var(--border); }
-.chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.chip.active { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .chip:disabled { opacity: 0.35; cursor: not-allowed; }
 
 .select {
@@ -162,7 +168,7 @@ body { background: var(--page); color: var(--ink); overflow: hidden; }
 }
 .play {
   width: 30px; height: 30px; border-radius: 50%; flex: none;
-  background: var(--accent); color: #fff; border: 0; cursor: pointer; font-size: 11px;
+  background: var(--accent); color: var(--on-accent); border: 0; cursor: pointer; font-size: 11px;
 }
 .clock { font-variant-numeric: tabular-nums; font-size: 12px; min-width: 42px; }
 .clock.muted { color: var(--ink-muted); }
@@ -221,12 +227,14 @@ body { background: var(--page); color: var(--ink); overflow: hidden; }
 }
 .tool:hover:not(:disabled) { background: #303030; color: var(--ink); }
 .tool:disabled { opacity: 0.35; cursor: not-allowed; }
-.tool.on { background: var(--accent); color: #fff; }
+.tool.on { background: var(--accent); color: var(--on-accent); }
 /* A hover must not out-rank the pressed state. `.tool:hover:not(:disabled)`
    scores (0,3,0) against `.tool.on`'s (0,2,0), so an active tool stayed grey
    until the pointer left it -- the button appeared not to respond to its own
    click. Hovering an active tool now brightens the accent instead. */
-.tool.on:hover:not(:disabled) { background: var(--accent); filter: brightness(1.15); }
+.tool.on:hover:not(:disabled) {
+  background: var(--accent); color: var(--on-accent); filter: brightness(1.15);
+}
 .tool-sep { height: 1px; background: var(--border); margin: 2px 4px; }
 
 /* Name on demand, so the label is available without living on the button. */
@@ -574,7 +582,7 @@ body { background: var(--page); color: var(--ink); overflow: hidden; }
   color: var(--ink);
 }
 button.primary {
-  background: var(--accent); color: #fff; border: 0; border-radius: 7px;
+  background: var(--accent); color: var(--on-accent); border: 0; border-radius: 7px;
   padding: 8px 16px; font-family: inherit; font-size: 12.5px; font-weight: 600;
   cursor: pointer;
 }
